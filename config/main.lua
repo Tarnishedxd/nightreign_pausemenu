@@ -36,7 +36,9 @@ return {
 
     --- Set the locale key.
     --- Must be a valid locale `locales/*.json` file.
-    --- @type string
+    --- Available: 'en', 'tr', 'hu', 'de', 'fr', 'es', 'it', 'pl', 'ro'
+    --- Missing keys fall back to English; an unknown locale falls back to English with a console warning.
+    --- @type 'en' | 'tr' | 'hu' | 'de' | 'fr' | 'es' | 'it' | 'pl' | 'ro' | string
     locale = 'en',
 
     --- @type string Currency symbol (e.g. USD, TRY, EUR etc.)

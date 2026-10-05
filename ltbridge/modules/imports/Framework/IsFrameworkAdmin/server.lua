@@ -30,9 +30,13 @@ local adapters = {
         return IsPlayerAceAllowed(source, 'admin')
     end,
 }
-local adapter = adapters[LT.Framework.GetResource()] or function(...)
-    LT.printf('error', 'No supported framework found.')
-    return nil
+local function adapter(...)
+    local fn = adapters[LT.Framework.GetResource()]
+    if not fn then
+        LT.Framework.MissingFramework()
+        return nil
+    end
+    return fn(...)
 end
 function LT.Framework.IsFrameworkAdmin(source)
     if not source then

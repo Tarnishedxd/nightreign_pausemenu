@@ -2,7 +2,7 @@ local PLAYER_TTL <const> = 60000
 local MONEY_TTL <const> = 35000
 
 local playerCount = {
-    at = 0,
+    at = nil,
     count = 0,
     max = 48,
 }
@@ -11,7 +11,8 @@ local money = {}
 
 local function countPlayers()
     local now = GetGameTimer()
-    if now - playerCount.at < PLAYER_TTL then
+    -- `at` starts unset: the server timer starts at 0, so 0 would serve "0 players" for the first minute.
+    if playerCount.at and now - playerCount.at < PLAYER_TTL then
         return playerCount.count, playerCount.max
     end
 

@@ -50,5 +50,7 @@ export default defineConfig({
 	build: {
 		outDir: "build",
 		emptyOutDir: true,
+		// FiveM ships its own Chromium (CEF); keep the output to syntax older builds understand.
+		target: "es2020",
 	},
 });

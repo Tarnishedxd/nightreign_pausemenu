@@ -409,7 +409,7 @@
 			leave-to-class="opacity-0">
 			<div v-if="langOpen" class="fixed inset-0 z-40 grid place-items-center bg-black/40 px-6">
 				<section
-					class="w-full max-w-xl rounded-md border border-white/10 bg-white/10 px-5 py-5 shadow-[inset_0_0_6px_rgb(255_255_255/0.04)]"
+					class="w-full max-w-xl rounded-md border border-white/10 bg-white/10 px-5 py-5 backdrop-blur-xl shadow-[inset_0_0_6px_rgb(255_255_255/0.04)]"
 					role="dialog"
 					aria-modal="true">
 					<p class="text-base leading-6 text-white/75">

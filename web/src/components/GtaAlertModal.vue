@@ -18,7 +18,7 @@
 				<section
 					v-if="alert.open"
 					ref="dialogRef"
-					class="w-full max-w-md rounded-md border border-white/10 bg-white/10 px-5 py-5 shadow-[inset_0_0_6px_rgb(255_255_255/0.04)]"
+					class="w-full max-w-md rounded-md border border-white/10 bg-white/10 px-5 py-5 backdrop-blur-xl shadow-[inset_0_0_6px_rgb(255_255_255/0.04)]"
 					:style="panelStyle"
 					role="dialog"
 					aria-modal="true"

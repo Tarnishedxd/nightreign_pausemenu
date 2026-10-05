@@ -23,9 +23,13 @@ local adapters = {
         return LocalPlayer.state.isLoggedIn or false
     end,
 }
-local adapter = adapters[LT.Framework.GetResource()] or function(...)
-    LT.printf('error', 'No supported framework found.')
-    return false
+local function adapter(...)
+    local fn = adapters[LT.Framework.GetResource()]
+    if not fn then
+        LT.Framework.MissingFramework()
+        return false
+    end
+    return fn(...)
 end
 function LT.Framework.IsPlayerLoaded()
     return adapter()

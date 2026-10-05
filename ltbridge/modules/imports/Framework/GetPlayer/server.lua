@@ -23,9 +23,13 @@ local adapters = {
         return QBX:GetPlayer(source)
     end,
 }
-local adapter = adapters[LT.Framework.GetResource()] or function(source)
-    LT.printf('error', 'No supported framework found.')
-    return nil
+local function adapter(...)
+    local fn = adapters[LT.Framework.GetResource()]
+    if not fn then
+        LT.Framework.MissingFramework()
+        return nil
+    end
+    return fn(...)
 end
 function LT.Framework.GetPlayer(source)
         if not LT.ltassert(source, 'source is required') then return false end

@@ -21,8 +21,6 @@
 			<!-- Server Logo -->
 			<BrandLogo class="h-16 absolute top-5 left-5 pointer-events-none" />
 
-			<!-- Map Info -->
-			<MapInfo />
 			<Transition
 				enter-active-class="transition duration-200 ease-out"
 				enter-from-class="opacity-0"
@@ -32,11 +30,11 @@
 				leave-to-class="opacity-0">
 				<p
 					v-if="sheet.placing"
-					class="pointer-events-none absolute bottom-[7.25rem] left-1/2 -translate-x-1/2 text-sm font-medium text-white/85">
+					class="pointer-events-none absolute bottom-[10rem] left-1/2 -translate-x-1/2 text-sm font-medium text-white/85">
 					{{ _t("ui.map3d.place", "Click the map to place a blip.") }}
 				</p>
 			</Transition>
-			<div class="pointer-events-none fixed bottom-8 left-1/2 z-[6] -translate-x-1/2">
+			<div class="pointer-events-none fixed bottom-[12rem] left-1/2 z-[6] -translate-x-1/2">
 				<Transition
 					enter-active-class="transition duration-200 ease-out"
 					enter-from-class="translate-y-3 opacity-0"
@@ -55,8 +53,11 @@
 			<!-- Search Input -->
 			<MapSearchInput />
 
-			<!-- Controls -->
-			<MapControls />
+			<!-- Map info + controls: one column that wraps instead of running under the blip panel -->
+			<div class="!pointer-events-none absolute bottom-6 left-6 flex max-w-[calc(100%-28rem)] flex-col items-start gap-4">
+				<MapInfo />
+				<MapControls />
+			</div>
 		</div>
 
 		<MapMarkers />

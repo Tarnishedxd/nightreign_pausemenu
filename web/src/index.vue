@@ -47,6 +47,7 @@ import PauseHome from "@/pages/Pause/PauseHome.vue";
 import GtaMap from "@/pages/GtaMap/GtaMap.vue";
 import SettingsPage from "@/pages/Settings/Settings.vue";
 import GtaAlertModal from "@/components/GtaAlertModal.vue";
+import { announceReady } from "@/services/api";
 
 const store = useMainStore();
 const { visible, currentPage } = storeToRefs(store);
@@ -55,6 +56,6 @@ const { settings } = storeToRefs(settingsStore);
 
 useScaler(100);
 onMounted(() => {
-	fetchNui("ltbridge:ready", {}, "ok");
+	announceReady();
 });
 </script>

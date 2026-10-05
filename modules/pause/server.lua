@@ -17,7 +17,9 @@ local premiumWarned = false
 --- @return number|nil
 local function premiumPoints(source)
     if premiumCfg.enabled ~= true or type(premiumCfg.get) ~= 'function' then return nil end
-    local ok, result = pcall(premiumCfg.get, source)
+    local ok, result, extra = pcall(premiumCfg.get, source)
+    -- Some exports answer `ok, amount`: take the number that follows a boolean.
+    if ok and type(result) == 'boolean' then result = extra end
     local value = ok and tonumber(result) or nil
     if value and (value ~= value or math.abs(value) == math.huge) then value = nil end
     if not value then

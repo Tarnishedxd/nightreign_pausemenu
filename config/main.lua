@@ -59,7 +59,7 @@ return {
         serverName = 'Nightreign Roleplay',
 
         --- Show logo + server name on pause / settings / stats / 3D map.
-        --- The logo is web/build/branding/logo.png.
+        --- The logo is web/build/branding/logo.webp.
         --- @type boolean
         showBranding = true,
 
@@ -85,12 +85,11 @@ return {
 
             --- Server side. Return the player's premium points as a number,
             --- or nil to hide them. Called at most once every 35 seconds per player.
-            --- Put your coin shop's export here, for example:
-            ---     return exports['g-coinshop']:<ExportName>(source)
+            --- Default: g-coinshop's GetPremiumPointsBySource export.
             --- @param source number
             --- @return number|nil
             get = function(source)
-                return nil
+                return exports['g-coinshop']:GetPremiumPointsBySource(source)
             end,
 
         },

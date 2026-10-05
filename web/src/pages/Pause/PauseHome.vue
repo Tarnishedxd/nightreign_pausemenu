@@ -5,7 +5,7 @@
 		<div
 			v-if="player.showBranding"
 			class="pause-brand-in absolute left-8 top-8 z-[2] flex items-center gap-3.5">
-			<BrandLogo class="h-11 w-11 shrink-0" />
+			<BrandLogo class="h-16 w-auto shrink-0" />
 			<p class="text-xl font-semibold leading-none tracking-widest text-white">{{ player.serverName }}</p>
 		</div>
 
@@ -20,8 +20,13 @@
 				<span class="mx-2 text-white/25">|</span>
 				<span class="text-[11px] uppercase tracking-wide">{{ _t("ui.pause.bank", "Bank") }}</span>
 				<span class="ml-1.5 tabular-nums text-white/85">{{ bankLabel }}</span>
+				<template v-if="premiumLabel">
+					<span class="mx-2 text-white/25">|</span>
+					<span class="text-[11px] uppercase tracking-wide">{{ _t("ui.pause.premium", "Premium") }}</span>
+					<span class="ml-1.5 tabular-nums text-amber-300/90">{{ premiumLabel }}</span>
+				</template>
 			</p>
-			<p class="mt-1 text-sm text-white/55">
+			<p v-if="player.showPlayerCount" class="mt-1 text-sm text-white/55">
 				<span class="text-[11px] uppercase tracking-wide">{{ _t("ui.pause.players", "Players") }}</span>
 				<span class="ml-1.5 tabular-nums text-white/85">{{ player.players }} / {{ player.maxPlayers }}</span>
 			</p>
@@ -130,6 +135,15 @@ const money = (amount: number) => {
 
 const cashLabel = computed(() => money(player.value.cash));
 const bankLabel = computed(() => money(player.value.bank));
+const premiumLabel = computed(() => {
+	const value = Number(player.value.premium);
+	if (!Number.isFinite(value) || value < 0) return "";
+	try {
+		return new Intl.NumberFormat(player.value.currencyFormat || "en-US", { maximumFractionDigits: 0 }).format(value);
+	} catch {
+		return Math.round(value).toLocaleString("en-US");
+	}
+});
 
 const rowClass = (id: string, index: number) => {
 	const on = index === selected.value;
@@ -169,13 +183,17 @@ const items = computed(() => [
 				},
 			]
 		: []),
-	{
-		id: "stats",
-		label: _t("ui.pause.stats", "Stats"),
-		hint: _t("ui.pause.statsHint", "Skills and progress"),
-		icon: ChartColumn,
-		action: onStats,
-	},
+	...(player.value.showStats
+		? [
+				{
+					id: "stats",
+					label: _t("ui.pause.stats", "Stats"),
+					hint: _t("ui.pause.statsHint", "Skills and progress"),
+					icon: ChartColumn,
+					action: onStats,
+				},
+			]
+		: []),
 	{
 		id: "settings",
 		label: _t("ui.pause.settings", "Settings"),

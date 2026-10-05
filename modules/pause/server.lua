@@ -1,3 +1,6 @@
+local cfg <const> = require 'config.main'
+local premiumCfg <const> = cfg.pause.premium or {}
+local showPlayerCount <const> = cfg.pause.showPlayerCount == true
 local PLAYER_TTL <const> = 60000
 local MONEY_TTL <const> = 35000
 
@@ -8,6 +11,28 @@ local playerCount = {
 }
 
 local money = {}
+local premiumWarned = false
+
+--- @param source number
+--- @return number|nil
+local function premiumPoints(source)
+    if premiumCfg.enabled ~= true or type(premiumCfg.get) ~= 'function' then return nil end
+    local ok, result = pcall(premiumCfg.get, source)
+    local value = ok and tonumber(result) or nil
+    if value and (value ~= value or math.abs(value) == math.huge) then value = nil end
+    if not value then
+        if not premiumWarned then
+            premiumWarned = true
+            if ok then
+                LT.Debug.Error('config.pause.premium.get returned no number. Put your coin shop export in it, or set premium.enabled = false.')
+            else
+                LT.Debug.Error('config.pause.premium.get failed: %s', tostring(result))
+            end
+        end
+        return nil
+    end
+    return math.floor(value)
+end
 
 local function countPlayers()
     local now = GetGameTimer()
@@ -33,31 +58,35 @@ end
 --- @param source number
 --- @return number cash
 --- @return number bank
+--- @return number|nil premium
 local function playerMoney(source)
     local now = GetGameTimer()
     local row = money[source]
     if row and now - row.at < MONEY_TTL then
-        return row.cash, row.bank
+        return row.cash, row.bank, row.premium
     end
 
     row = {
         at = now,
         cash = LT.Framework.GetMoney(source, 'cash') or 0,
         bank = LT.Framework.GetMoney(source, 'bank') or 0,
+        premium = premiumPoints(source),
     }
     money[source] = row
-    return row.cash, row.bank
+    return row.cash, row.bank, row.premium
 end
 
 lib.callback.register(_e('pause:header'), function(source)
-    local count, maxPlayers = countPlayers()
-    local cash, bank = playerMoney(source)
-    return {
+    local cash, bank, premium = playerMoney(source)
+    local header = {
         cash = cash,
         bank = bank,
-        players = count,
-        maxPlayers = maxPlayers,
+        premium = premium,
     }
+    if showPlayerCount then
+        header.players, header.maxPlayers = countPlayers()
+    end
+    return header
 end)
 
 LT.OnPlayerUnload(function()

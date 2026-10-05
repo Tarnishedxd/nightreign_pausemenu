@@ -1,20 +1,13 @@
 <template>
-	<img v-if="showBranding" :src="src" alt="" :class="props.class" @error="onError" />
+	<img v-if="showBranding && !failed" :src="src" alt="" :class="props.class" @error="failed = true" />
 </template>
 
 <script setup lang="ts">
-const props = defineProps<{
-	class?: string;
-}>();
-
+const props = defineProps<{ class?: string; }>();
 const store = useMainStore();
 const { player } = storeToRefs(store);
 const showBranding = computed(() => player.value.showBranding !== false);
-
-const src = ref(assetURL("branding/logo.svg"));
-
-const onError = () => {
-	const png = assetURL("branding/logo.png");
-	if (src.value !== png) src.value = png;
-};
+const src = assetURL("branding/logo.png");
+// A missing logo file must not leave a broken-image icon on screen.
+const failed = ref(false);
 </script>

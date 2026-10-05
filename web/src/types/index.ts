@@ -146,12 +146,16 @@ export type Player = {
 	serverName: string;
 	cash: number;
 	bank: number;
+	/** Premium points; negative when not available. */
+	premium: number;
 	players: number;
 	maxPlayers: number;
 	currency: string;
 	currencyFormat: string;
 	enable3DMap: boolean;
 	showBranding: boolean;
+	showStats: boolean;
+	showPlayerCount: boolean;
 };
 
 export type MarkerGroup = {

@@ -24,7 +24,7 @@ local function premiumPoints(source)
         if not premiumWarned then
             premiumWarned = true
             if ok then
-                LT.Debug.Error('config.pause.premium.get returned no number. Put your coin shop export in it, or set premium.enabled = false.')
+                LT.Debug.Error('config.pause.premium.get returned no number for player %s, premium points are hidden for them. If this happens for everyone, put your coin shop export in it or set premium.enabled = false.', tostring(source))
             else
                 LT.Debug.Error('config.pause.premium.get failed: %s', tostring(result))
             end

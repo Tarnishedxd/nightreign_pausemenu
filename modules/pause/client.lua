@@ -113,6 +113,7 @@ function PauseClass:new()
     self.headerAt = 0
     self.restoreRadar = false
     self.hudHidden = false
+    self.waisHidden = false
     return self
 end
 
@@ -362,10 +363,13 @@ end
 -- OPEN / CLOSE
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
+local waisFailed = false
+
 --- @param hidden boolean
+--- @return boolean called false when wais-hudv6 is off in the config or not started
 local function setWaisHud(hidden)
-    if not cfg.pause.hideWaisHud then return end
-    if GetResourceState(waisHud) ~= 'started' then return end
+    if not cfg.pause.hideWaisHud then return false end
+    if GetResourceState(waisHud) ~= 'started' then return false end
     local ok, err = pcall(function()
         local hud = exports[waisHud]
         if hidden then
@@ -376,9 +380,11 @@ local function setWaisHud(hidden)
             hud:showRadar(false) -- false shows the minimap again
         end
     end)
-    if not ok then
+    if not ok and not waisFailed then
+        waisFailed = true
         LT.Debug.Error('%s export failed: %s', waisHud, tostring(err))
     end
+    return true
 end
 
 --- Hides third-party HUDs while any pause screen (home, maps, settings, vanilla) is up.
@@ -386,7 +392,15 @@ end
 function PauseClass:setHudHidden(hidden)
     if self.hudHidden == hidden then return end
     self.hudHidden = hidden
-    setWaisHud(hidden)
+    if hidden then
+        -- Before a character is loaded (multicharacter, spawn select) the HUD is not ours to
+        -- touch: closing the menu there must not show it over those screens.
+        if not LT.Framework.IsPlayerLoaded() then return end
+        self.waisHidden = setWaisHud(true)
+    elseif self.waisHidden then
+        self.waisHidden = false
+        setWaisHud(false)
+    end
 end
 
 --- @param name 'onPauseOpened'|'onPauseClosed'

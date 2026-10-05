@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #app {
+    @apply w-full h-full m-0 p-0 overflow-hidden inset-0 bg-transparent select-none;
+  }
+
+  img {
+    @apply select-none pointer-events-none;
+  }
+
+  button, a, input, textarea, select, [role="slider"] {
+    @apply outline-none focus:outline-none focus-visible:outline-none;
+  }
+
+  input, textarea {
+    @apply select-text;
+  }
+}
+
+@layer utilities {
+  .font-map-display {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+  }
+  .font-map-mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+  }
+}
+
+@layer components {
+  .veil-fade {
+    transition: opacity 400ms ease-in-out;
+  }
+  .key-prompt-blink {
+    animation: key-prompt-blink 1.1s ease-in-out infinite;
+  }
+  .step-btn {
+    @apply px-2 py-1 rounded-md bg-white/15 border border-white/20 text-[14px] text-white/80 hover:bg-white/25 shrink-0 leading-none;
+  }
+  .map-skew {
+    clip-path: polygon(0.5rem 0, 100% 0, 100% 100%, 0 100%);
+  }
+  .map-key {
+    @apply grid min-h-6 min-w-6 place-items-center rounded-sm bg-black/50 px-2 py-1 text-xs font-medium tracking-wide text-white ring-1 ring-inset ring-white/10;
+  }
+  .map-key-icon {
+    @apply grid min-h-6 min-w-6 place-items-center rounded-sm bg-black/50 px-1.5 py-1 text-white ring-1 ring-inset ring-white/10;
+  }
+  .map-bar {
+    @apply bg-black/75 text-white transition-all duration-150;
+  }
+  .map-bar:hover {
+    background-color: rgb(37 37 37 / 0.75);
+  }
+  .map-bar-on {
+    @apply bg-white text-black transition-all duration-150;
+  }
+}
+
+@keyframes key-prompt-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}

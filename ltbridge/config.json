@@ -1,0 +1,31 @@
+{
+  "version": "1.3.5",
+  "bundle": false,
+  "debug": false,
+  "minify": false,
+  "modules": [
+    "@NUI/State",
+    "@NUI",
+    "@Debug",
+    "@LoadUnload",
+    "@NUI/Message",
+    "@Version/CheckVersion",
+    "@Events/Emit",
+    "@Events",
+    "@Events/EmitNet",
+    "@Events/Register",
+    "@NUI/Focus",
+    "@NUI/Callback",
+    "@Framework/GetPlayers",
+    "@Framework",
+    "@Framework/GetMoney",
+    "@Framework/GetPlayerName",
+    "@Framework/GetPlayerSourceByCitizenId",
+    "@Framework/GetPlayerCitizenId",
+    "@Hooks/Stop",
+    "@Framework/IsFrameworkAdmin",
+    "@Cooldown",
+    "@Math/Clamp",
+    "@Math/Lerp"
+  ]
+}

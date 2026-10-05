@@ -10,7 +10,7 @@ end
 register('settings:writeDump', function(payload)
     if cfg.debug < 4 then return end
     if type(payload) ~= 'table' then return end
-    local catIndex = tonumber(payload.index) or 0
+    local catIndex = math.floor(tonumber(payload.index) or 0)
     local safeLabel = sanitizeLabel(payload.label)
     local prefix = ('logs/%02d_%s'):format(catIndex, safeLabel)
 

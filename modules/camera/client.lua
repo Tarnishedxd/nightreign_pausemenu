@@ -521,7 +521,9 @@ function CameraClass:startDeathWatch()
 
     CreateThread(function()
         while self.open and self.deathThread do
-            if cache.isDead then
+            local ped = cache.ped
+            if cache.isDead or LocalPlayer.state.isDead == true
+                or (ped and ped ~= 0 and (IsEntityDead(ped) or IsPedFatallyInjured(ped))) then
                 self.deathThread = false
                 CreateThread(function()
                     self:closeMap(true)
@@ -539,7 +541,7 @@ end
 function CameraClass:runTransition(fromPos, toPos, fromYaw, toYaw, fromPitch, toPitch, durationMs)
     if not self.cam or not DoesCamExist(self.cam) then return false end
 
-    local duration = durationMs or camCfg.transitionMs
+    local duration = math.max(1, tonumber(durationMs or camCfg.transitionMs) or 1)
     local start = GetGameTimer()
 
     while self.cam and DoesCamExist(self.cam) do
@@ -1093,11 +1095,12 @@ function CameraClass:refreshInfo()
     local street = GetStreetNameFromHashKey(streetHash)
     local zone = GetLabelText(GetNameOfZone(coords.x, coords.y, coords.z))
 
-    if zone == 'NULL' or zone == nil or zone == '' then
-        zone = 'Unknown'
+    -- Empty values are rendered as a localized "Unknown" by the UI.
+    if zone == 'NULL' or zone == nil then
+        zone = ''
     end
-    if street == nil or street == '' then
-        street = 'Unknown'
+    if street == nil then
+        street = ''
     end
 
     self.state.zone = zone
@@ -1176,7 +1179,21 @@ LT.NUI.Callback('SetReturn3dAnim', function(data, cb)
 end)
 
 LT.Hooks.Stop(function()
-    if Camera then
-        Camera:stopHideLoop()
+    if not Camera then return end
+    Camera:stopHideLoop()
+    if not Camera.open and not Camera.cam then return end
+    -- Hand the view back to the gameplay camera if the resource stops mid-map.
+    Camera.open = false
+    Camera.moveThread = false
+    Camera.infoThread = false
+    Camera.deathThread = false
+    RenderScriptCams(false, false, 0, true, true)
+    if Camera.cam and DoesCamExist(Camera.cam) then
+        DestroyCam(Camera.cam, false)
+    end
+    Camera.cam = nil
+    ClearFocus()
+    if IsScreenFadedOut() or IsScreenFadingOut() then
+        DoScreenFadeIn(0)
     end
 end)

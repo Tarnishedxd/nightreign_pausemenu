@@ -8,6 +8,7 @@
 			"parse": "Ayar kategorileri okundu ancak ayrıştırılamadı."
 		},
 		"popup": {
+			"alert": "Uyarı",
 			"apply": {
 				"body": "Bekleyen %d grafik değişikliği uygulansın mı?",
 				"cancel": "İptal",
@@ -33,7 +34,15 @@
 			"waypoint": "Rota belirle",
 			"zoom": "Yakınlaştır / Uzaklaştır"
 		},
+		"keys": {
+			"lmb": "SOL TIK",
+			"doubleLmb": "2 x SOL TIK",
+			"rmb": "SAĞ TIK",
+			"wheel": "TEKERLEK",
+			"space": "BOŞLUK"
+		},
 		"localeName": "Türkçe",
+		"localeCode": "tr-TR",
 		"map": {
 			"close": "Haritayı Kapat",
 			"empty": "Eşleşen sonuç yok",
@@ -95,6 +104,7 @@
 			"shareTitle": "Blipi paylaş",
 			"shortRange": "Kısa mesafe",
 			"showOn2d": "2D Haritada Göster",
+			"unknown": "Bilinmiyor",
 			"waypoint": "Rota belirle",
 			"waypointName": "İşaret",
 			"waypointRemoved": "İşaret kaldırıldı",

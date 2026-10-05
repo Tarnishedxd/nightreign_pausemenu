@@ -418,11 +418,13 @@ function ThreeDMapClass:syncWorldBlips()
                     local spriteId = parseConfigSprite(entry.sprite)
                     local pos = entry.coords
                     if pos and pos.x and pos.y and pos.z then
+                        local label = entry.label or group.label or group.id
                         self:addWorldBlip(('cfg:%s:%s'):format(group.id, n), {
                             x = pos.x,
                             y = pos.y,
                             z = pos.z,
-                            label = entry.label or group.label or group.id,
+                            -- Config labels are locale keys; resolve them so the 2D map does not show raw keys.
+                            label = _t(label, label),
                             spriteId = spriteId,
                             blipColour = math.floor(tonumber(entry.color) or 3),
                             scale = tonumber(entry.scale) or 0.8,

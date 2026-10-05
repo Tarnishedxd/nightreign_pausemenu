@@ -460,6 +460,8 @@ end
 --- @param identifier string
 --- @return integer|nil
 local function sourceOf(identifier)
+    -- Offline owners are normal here; skip the bridge lookup that logs an error for them.
+    if not LT.Framework.GetPlayerByCitizenId(identifier) then return nil end
     return LT.Framework.GetPlayerSourceByCitizenId(identifier)
 end
 
@@ -654,7 +656,8 @@ lib.callback.register(_e('3dmap:share'), function(src, data)
     local id = type(data) == 'table' and tonumber(data.id) or nil
     local target = type(data) == 'table' and tonumber(data.target) or nil
     if not identifier or not id or not db:wait() then return fail('invalid') end
-    if not target or target == src then return fail('player') end
+    if not target or target ~= math.floor(target) or target == src then return fail('player') end
+    if not GetPlayerName(target) then return fail('player') end
 
     local targetId = citizenId(target)
     if not targetId or targetId == identifier then return fail('player') end

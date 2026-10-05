@@ -25,6 +25,6 @@ CreateThread(function()
     -- Send translations to NUI
     SendVue('UpdateLocale', {
         locale = cfg.locale,
-        translations = lib.getLocales()
+        translations = GetLocaleTable()
     })
 end)

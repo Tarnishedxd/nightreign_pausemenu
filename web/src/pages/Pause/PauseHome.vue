@@ -45,7 +45,7 @@
 				@mouseenter="selected = index"
 				@click="item.action">
 				<span :class="item.id === 'quit' ? '!text-red-400/85' : 'text-white/85'">
-					<component :is="item.icon" :stroke-width="1.25" :size="iS(iS(21))" />
+					<component :is="item.icon" :stroke-width="1.25" :size="iS(21)" />
 				</span>
 				<span class="flex flex-col text-left min-w-0 flex-1">
 					<span class="block truncate text-lg" :class="item.id === 'quit' ? '!text-red-400/85' : 'text-white/85'">{{
@@ -116,11 +116,16 @@ const money = (amount: number) => {
 	const value = Number(amount) || 0;
 	const currency = player.value.currency || "USD";
 	const format = player.value.currencyFormat || "en-US";
-	return new Intl.NumberFormat(format, {
-		style: "currency",
-		currency,
-		maximumFractionDigits: 0,
-	}).format(value);
+	try {
+		return new Intl.NumberFormat(format, {
+			style: "currency",
+			currency,
+			maximumFractionDigits: 0,
+		}).format(value);
+	} catch {
+		// Invalid currency / currencyFormat in config must not break the pause screen.
+		return `${Math.round(value).toLocaleString("en-US")} ${currency}`;
+	}
 };
 
 const cashLabel = computed(() => money(player.value.cash));
@@ -250,6 +255,13 @@ const onKeyDown = (e: KeyboardEvent) => {
 watch(quitConfirm, (open) => {
 	if (open) quitChoice.value = 0;
 });
+
+watch(
+	() => items.value.length,
+	(count) => {
+		if (selected.value >= count) selected.value = 0;
+	},
+);
 
 onMounted(() => {
 	window.addEventListener("keydown", onKeyDown);

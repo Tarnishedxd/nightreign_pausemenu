@@ -8,7 +8,50 @@ local resourceName <const> = GetCurrentResourceName()
 LT.Debug.SetMode(cfg.debug)
 
 --[[ Load locale ]]
-lib.locale(cfg.locale)
+local localeKey <const> = type(cfg.locale) == 'string' and cfg.locale ~= '' and cfg.locale or 'en'
+if not LoadResourceFile(resourceName, ('locales/%s.json'):format(localeKey)) then
+    print(('^3[%s] Locale "%s" was not found in locales/, falling back to English.^7'):format(resourceName, localeKey))
+end
+lib.locale(localeKey)
+
+--- @param source table
+--- @param target table
+--- @param prefix? string
+--- @return table
+local function flattenLocale(source, target, prefix)
+    for key, value in pairs(source) do
+        local fullKey = prefix and (prefix .. '.' .. key) or tostring(key)
+        if type(value) == 'table' then
+            flattenLocale(value, target, fullKey)
+        elseif type(value) == 'string' then
+            target[fullKey] = value
+        end
+    end
+    return target
+end
+
+--[[ English strings fill any key a translation is missing ]]
+local fallbackLocale = {}
+if localeKey ~= 'en' then
+    local raw = LoadResourceFile(resourceName, 'locales/en.json')
+    local ok, decoded = pcall(json.decode, raw or '')
+    if ok and type(decoded) == 'table' then
+        fallbackLocale = flattenLocale(decoded, {})
+    end
+end
+
+--- Flat translation table for the NUI (active locale merged over English).
+--- @return table<string, string>
+function GetLocaleTable()
+    local merged = {}
+    for key, value in pairs(fallbackLocale) do
+        merged[key] = value
+    end
+    for key, value in pairs(lib.getLocales() or {}) do
+        merged[key] = value
+    end
+    return merged
+end
 
 --[[ Set ox_lib additions ]]
 math = lib.math
@@ -22,11 +65,17 @@ table = lib.table
 --- @param ...? any Format arguments (Optional)
 --- @return string
 function _t(str, fallback, ...)
-    local retval = locale(str, ...)
-    if retval == str then
-        return string.format(fallback or str, ...)
+    local found, retval = pcall(locale, str, ...)
+    if found and retval ~= str then
+        return retval
     end
-    return retval
+    local text = fallbackLocale[str] or fallback
+    if text == nil then return str end
+    if select('#', ...) > 0 then
+        local ok, formatted = pcall(string.format, text, ...)
+        if ok then return formatted end
+    end
+    return text
 end
 
 --- Resource event shortcut.

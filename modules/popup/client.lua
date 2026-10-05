@@ -218,7 +218,7 @@ function PopupBridgeClass:open(raw)
     self.lastRaw = raw or ''
     self.state:set({
         open = true,
-        title = title ~= '' and title or 'Alert',
+        title = title ~= '' and title or _t('client.popup.alert', 'Alert'),
         body = body,
         prompt = prompt,
         detail = detail,

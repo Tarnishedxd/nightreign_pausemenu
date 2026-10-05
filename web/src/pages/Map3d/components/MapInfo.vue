@@ -13,7 +13,7 @@
 const store = useMainStore();
 const { map } = storeToRefs(store);
 
-const title = computed(() => map.value.zone || "Unknown");
-const subtitle = computed(() => map.value.street || "Unknown");
+const title = computed(() => map.value.zone || _t("ui.map3d.unknown", "Unknown"));
+const subtitle = computed(() => map.value.street || _t("ui.map3d.unknown", "Unknown"));
 const altitudeLabel = computed(() => `${map.value.altitude}m`);
 </script>

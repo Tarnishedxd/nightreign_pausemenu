@@ -23,9 +23,13 @@ local adapters = {
         return QBX:GetPlayerByCitizenId(citizenid)
     end,
 }
-local adapter = adapters[LT.Framework.GetResource()] or function(...)
-    LT.printf('error', 'No supported framework found.')
-    return nil
+local function adapter(...)
+    local fn = adapters[LT.Framework.GetResource()]
+    if not fn then
+        LT.Framework.MissingFramework()
+        return nil
+    end
+    return fn(...)
 end
 function LT.Framework.GetPlayerByCitizenId(citizenid)
         if not LT.ltassert(citizenid, 'citizenid is required') then return false end

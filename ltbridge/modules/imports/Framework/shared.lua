@@ -31,11 +31,19 @@ local function detectFramework()
         QBX = exports.qbx_core
         frameworkName = 'qbx_core'
     end
-    if not frameworkName then
-        LT.printf('error', 'No supported framework found.')
-    end
+end
+local lastMissingLog = -1
+function LT.Framework.MissingFramework()
+    local now = GetGameTimer()
+    if lastMissingLog >= 0 and now - lastMissingLog < 10000 then return end
+    lastMissingLog = now
+    LT.printf('error', 'No supported framework found (es_extended, qb-core or qbx_core). Start it before %s in server.cfg.', __LT_RESOURCE_NAME)
 end
 function LT.Framework.GetResource()
+    -- The framework can start after this resource; keep looking until it is up.
+    if not frameworkName then
+        detectFramework()
+    end
     return frameworkName
 end
 detectFramework()

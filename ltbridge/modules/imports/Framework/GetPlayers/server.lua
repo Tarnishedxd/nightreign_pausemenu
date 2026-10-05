@@ -13,6 +13,7 @@ LT = LT or {}
 LT.Framework = LT.Framework or {}
 
 function LT.Framework.GetPlayers()
+    LT.Framework.GetResource()
     if ESX then
         local players = ESX.GetExtendedPlayers()
         local playerList = {}

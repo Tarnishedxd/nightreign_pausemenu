@@ -8,11 +8,15 @@ local resourceName <const> = GetCurrentResourceName()
 LT.Debug.SetMode(cfg.debug)
 
 --[[ Load locale ]]
-local localeKey <const> = type(cfg.locale) == 'string' and cfg.locale ~= '' and cfg.locale or 'en'
-if not LoadResourceFile(resourceName, ('locales/%s.json'):format(localeKey)) then
-    print(('^3[%s] Locale "%s" was not found in locales/, falling back to English.^7'):format(resourceName, localeKey))
+local requestedLocale <const> = type(cfg.locale) == 'string' and cfg.locale ~= '' and cfg.locale or 'en'
+local localeKey <const> = LoadResourceFile(resourceName, ('locales/%s.json'):format(requestedLocale)) and requestedLocale or 'en'
+if localeKey ~= requestedLocale then
+    print(('^3[%s] Locale "%s" was not found in locales/, falling back to English.^7'):format(resourceName, requestedLocale))
 end
 lib.locale(localeKey)
+
+--- Locale that was actually loaded (after the English fallback).
+ActiveLocale = localeKey
 
 --- @param source table
 --- @param target table

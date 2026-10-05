@@ -1,5 +1,3 @@
-local cfg <const> = require 'config.main'
-
 --[[ Send Vue messages shortcut ]]
 SendVue = LT.NUI.Message
 
@@ -24,7 +22,7 @@ CreateThread(function()
 
     -- Send translations to NUI
     SendVue('UpdateLocale', {
-        locale = cfg.locale,
+        locale = ActiveLocale,
         translations = GetLocaleTable()
     })
 end)

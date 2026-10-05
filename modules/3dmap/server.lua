@@ -380,7 +380,8 @@ local db
 --- @return string|nil
 local function cleanLabel(value)
     if type(value) ~= 'string' then return nil end
-    local label = value:match('^%s*(.-)%s*$')
+    -- Strip GTA text formatting (~r~, <font>) and control characters; labels end up in blip names.
+    local label = value:gsub('~[^~]*~', ''):gsub('<[^>]*>', ''):gsub('[~<>]', ''):gsub('%c', ' '):match('^%s*(.-)%s*$')
     if not label or label == '' or #label > 48 then return nil end
     return label
 end

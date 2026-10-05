@@ -9,7 +9,7 @@ lerna-debug.log*
 
 node_modules
 .DS_Store
-build
+# web/build is committed: fxmanifest.lua serves the UI from it.
 build-ssr
 coverage
 *.local

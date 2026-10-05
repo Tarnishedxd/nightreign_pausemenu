@@ -3,18 +3,17 @@ SendVue = LT.NUI.Message
 
 CreateThread(function()
     local __start = GetGameTimer()
+    local warned = false
 
-    -- Wait for NUI to load
-    local try = 0
-    while not LT.NUI.IsLoaded() and try < 15 do
-        try += 1
-        Wait(1000)
-    end
-
-    -- If NUI is not loaded, error and return
-    if not LT.NUI.IsLoaded() then
-        error('NUI is not responding after ' .. GetGameTimer() - __start .. ' milliseconds.')
-        return
+    -- Wait for NUI to load. Ping the page so it re-sends its ready signal
+    -- in case the first one arrived before this script registered the callback.
+    while not LT.NUI.IsLoaded() do
+        SendNUIMessage({ action = 'ltbridge_check_nui' })
+        if not warned and GetGameTimer() - __start >= 15000 then
+            warned = true
+            LT.Debug.Error('NUI is not responding after %d milliseconds, still waiting. Check that web/build exists and the F8 console for NUI errors.', GetGameTimer() - __start)
+        end
+        Wait(500)
     end
 
     -- Log success

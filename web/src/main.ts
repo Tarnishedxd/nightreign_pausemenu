@@ -7,7 +7,9 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 
-// Import style
+// Import style (font is bundled: an external stylesheet would block the UI from starting when it cannot load)
+import "@fontsource-variable/plus-jakarta-sans/wght.css";
+import "@fontsource-variable/plus-jakarta-sans/wght-italic.css";
 import "@/assets/index.css";
 
 // Import app

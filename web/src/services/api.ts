@@ -4,6 +4,19 @@
  * @created 2026-06-16
  */
 
+let readyRetry = 0;
+
+/**
+ * Tells the client script that the UI is up. Retried until it succeeds, and repeated whenever the
+ * client pings (`ltbridge_check_nui`), so a signal sent before the client registered its callback is not lost.
+ */
+export const announceReady = () => {
+	window.clearTimeout(readyRetry);
+	fetchNui("ltbridge:ready", {}, "ok").catch(() => {
+		readyRetry = window.setTimeout(announceReady, 500);
+	});
+};
+
 onNuiMessage((data: any) => {
 	const main = useMainStore();
 	const settings = useSettingsStore();
@@ -100,6 +113,9 @@ onNuiMessage((data: any) => {
 			useMarkersStore().setNotice(data.text || "", data.kind === "success" ? "success" : "error");
 			break;
 		case "UpdateMarkerPositions":
+			break;
+		case "ltbridge_check_nui":
+			announceReady();
 			break;
 		default:
 			console.error(`[NUI] Unknown action: ${data.action}`);

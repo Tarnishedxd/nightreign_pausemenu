@@ -13,6 +13,7 @@
 		"rename-blips:dry": "node scripts/rename-blips.mjs --dry-run"
 	},
 	"dependencies": {
+		"@fontsource-variable/plus-jakarta-sans": "^5.3.0",
 		"@laot/nuix": "^2.0.12",
 		"@lucide/vue": "^1.47.0",
 		"@minko-fe/postcss-pxtorem": "^1.5.0",

@@ -9,7 +9,7 @@
 			leave-to-class="opacity-0">
 			<div v-if="open" class="fixed inset-0 z-40 grid place-items-center bg-black/40 px-6" :style="panelStyle">
 				<section
-					class="w-full max-w-sm overflow-hidden rounded-sm bg-black/80 ring-1 ring-white/15"
+					class="w-full max-w-sm overflow-hidden rounded-sm bg-black/80 ring-1 ring-white/15 backdrop-blur-xl"
 					role="dialog"
 					aria-modal="true">
 					<div class="map-bar-on flex h-11 items-center gap-2 px-4">

@@ -1,5 +1,5 @@
 <template>
-	<div class="pointer-events-none absolute bottom-16 left-6 flex flex-col items-start text-white">
+	<div class="pointer-events-none flex flex-col items-start text-white">
 		<span class="text-lg font-semibold leading-tight">{{ title }}</span>
 		<p class="mt-1 text-sm text-white/55">
 			<span>{{ subtitle }}</span>

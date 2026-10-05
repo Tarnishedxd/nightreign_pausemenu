@@ -1,5 +1,5 @@
 <template>
-	<div class="absolute bottom-6 left-6 text-white">
+	<div class="text-white">
 		<div class="flex flex-wrap items-center gap-3">
 			<div v-for="control in CONTROLS" :key="control.id" class="flex items-center gap-1.5 text-sm text-white/70">
 				<span class="map-key">{{ control.key }}</span>

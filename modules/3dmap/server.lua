@@ -105,7 +105,7 @@ local DatabaseClass = {}
 DatabaseClass.__index = DatabaseClass
 
 local MARKERS_SCHEMA <const> = [[
-    CREATE TABLE IF NOT EXISTS 0r_pausemenu_markers (
+    CREATE TABLE IF NOT EXISTS nightreign_pausemenu_markers (
         id INT NOT NULL AUTO_INCREMENT,
         owner VARCHAR(150) NOT NULL,
         label VARCHAR(80) NOT NULL,
@@ -126,7 +126,7 @@ local MARKERS_SCHEMA <const> = [[
 ]]
 
 local GLOBALS_SCHEMA <const> = [[
-    CREATE TABLE IF NOT EXISTS 0r_pausemenu_global_markers (
+    CREATE TABLE IF NOT EXISTS nightreign_pausemenu_global_markers (
         id INT NOT NULL AUTO_INCREMENT,
         category VARCHAR(80) NOT NULL,
         label VARCHAR(80) NOT NULL,
@@ -174,7 +174,7 @@ function DatabaseClass:fetch(identifier)
     local rows = MySQL.query.await([[
         SELECT id, owner, label, sprite, sprite_id, colour, coords,
                show_on_2d, blip_colour, scale, short_range, shares, requests
-        FROM 0r_pausemenu_markers
+        FROM nightreign_pausemenu_markers
         WHERE owner = ?
            OR JSON_SEARCH(shares, 'one', ?, NULL, '$[*].identifier') IS NOT NULL
            OR JSON_SEARCH(requests, 'one', ?, NULL, '$[*].identifier') IS NOT NULL
@@ -223,7 +223,7 @@ end
 --- @param identifier string
 --- @return integer
 function DatabaseClass:count(identifier)
-    return MySQL.scalar.await('SELECT COUNT(*) FROM 0r_pausemenu_markers WHERE owner = ?', { identifier }) or 0
+    return MySQL.scalar.await('SELECT COUNT(*) FROM nightreign_pausemenu_markers WHERE owner = ?', { identifier }) or 0
 end
 
 --- @param identifier string
@@ -238,7 +238,7 @@ end
 --- @param shortRange boolean
 function DatabaseClass:create(identifier, label, sprite, spriteId, colour, coords, showOn2d, blipColour, scale, shortRange)
     MySQL.insert.await([[
-        INSERT INTO 0r_pausemenu_markers
+        INSERT INTO nightreign_pausemenu_markers
             (owner, label, sprite, sprite_id, colour, coords, show_on_2d, blip_colour, scale, short_range, shares, requests)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', '[]')
     ]], {
@@ -260,7 +260,7 @@ end
 --- @return table|nil
 function DatabaseClass:row(owner, id)
     return MySQL.single.await(
-        'SELECT id, shares, requests FROM 0r_pausemenu_markers WHERE id = ? AND owner = ?',
+        'SELECT id, shares, requests FROM nightreign_pausemenu_markers WHERE id = ? AND owner = ?',
         { id, owner }
     )
 end
@@ -269,7 +269,7 @@ end
 --- @return table|nil
 function DatabaseClass:rowById(id)
     return MySQL.single.await(
-        'SELECT id, owner, shares, requests FROM 0r_pausemenu_markers WHERE id = ?',
+        'SELECT id, owner, shares, requests FROM nightreign_pausemenu_markers WHERE id = ?',
         { id }
     )
 end
@@ -280,7 +280,7 @@ end
 function DatabaseClass:delete(owner, id)
     local row = self:row(owner, id)
     if not row then return nil end
-    MySQL.update.await('DELETE FROM 0r_pausemenu_markers WHERE id = ? AND owner = ?', { id, owner })
+    MySQL.update.await('DELETE FROM nightreign_pausemenu_markers WHERE id = ? AND owner = ?', { id, owner })
     return row
 end
 
@@ -289,7 +289,7 @@ end
 --- @param requests table
 function DatabaseClass:writeLists(id, shares, requests)
     MySQL.update.await(
-        'UPDATE 0r_pausemenu_markers SET shares = ?, requests = ? WHERE id = ?',
+        'UPDATE nightreign_pausemenu_markers SET shares = ?, requests = ? WHERE id = ?',
         { encodeList(shares), encodeList(requests), id }
     )
 end
@@ -299,7 +299,7 @@ function DatabaseClass:fetchGlobals()
     local rows = MySQL.query.await([[
         SELECT id, category, label, sprite, sprite_id, colour, coords,
                show_on_2d, blip_colour, scale, short_range
-        FROM 0r_pausemenu_global_markers
+        FROM nightreign_pausemenu_global_markers
         ORDER BY category ASC, id ASC
     ]]) or {}
 
@@ -345,7 +345,7 @@ end
 --- @return integer
 function DatabaseClass:createGlobal(category, label, sprite, spriteId, colour, coords, showOn2d, blipColour, scale, shortRange, createdBy)
     return MySQL.insert.await([[
-        INSERT INTO 0r_pausemenu_global_markers
+        INSERT INTO nightreign_pausemenu_global_markers
             (category, label, sprite, sprite_id, colour, coords, show_on_2d, blip_colour, scale, short_range, created_by)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ]], {
@@ -366,7 +366,7 @@ end
 --- @param id integer
 --- @return boolean
 function DatabaseClass:deleteGlobal(id)
-    local affected = MySQL.update.await('DELETE FROM 0r_pausemenu_global_markers WHERE id = ?', { id })
+    local affected = MySQL.update.await('DELETE FROM nightreign_pausemenu_global_markers WHERE id = ?', { id })
     return (tonumber(affected) or 0) > 0
 end
 
@@ -448,7 +448,7 @@ end
 local function isAdmin(src)
     if mapCfg.adminCreator == false then return false end
     if LT.Framework.IsFrameworkAdmin(src) then return true end
-    local ace = type(mapCfg.adminAce) == 'string' and mapCfg.adminAce or '0r-pausemenu.globalblips'
+    local ace = type(mapCfg.adminAce) == 'string' and mapCfg.adminAce or 'nightreign_pausemenu.globalblips'
     return IsPlayerAceAllowed(tostring(src), ace) == true
 end
 
@@ -741,18 +741,41 @@ lib.callback.register(_e('3dmap:decline'), function(src, data)
     return sheet(identifier)
 end)
 
+--- Tables created before the resource was renamed; their rows are kept.
+local LEGACY_TABLES <const> = {
+    { from = '0r_pausemenu_markers', to = 'nightreign_pausemenu_markers' },
+    { from = '0r_pausemenu_global_markers', to = 'nightreign_pausemenu_global_markers' },
+}
+
+--- @param name string
+--- @return boolean
+local function tableExists(name)
+    local rows = MySQL.query.await('SHOW TABLES LIKE ?', { (name:gsub('_', '\\_')) })
+    return rows ~= nil and #rows > 0
+end
+
+local function migrateLegacyTables()
+    for i = 1, #LEGACY_TABLES do
+        local entry = LEGACY_TABLES[i]
+        if not tableExists(entry.to) and tableExists(entry.from) then
+            MySQL.query.await(('RENAME TABLE `%s` TO `%s`'):format(entry.from, entry.to))
+            LT.Debug.Success('Renamed table %s to %s.', entry.from, entry.to)
+        end
+    end
+end
+
 --- @param database Database
 local function bootDatabase(database)
     if database.missing then return end
 
+    migrateLegacyTables()
+
     if mapCfg.autoDB == false then
-        local rows = MySQL.query.await("SHOW TABLES LIKE '0r_pausemenu_markers'")
-        if not rows or #rows == 0 then
+        if not tableExists('nightreign_pausemenu_markers') then
             LT.Debug.Error('Marker table is missing. Set threeDMap.autoDB to create it.')
             return
         end
-        local globals = MySQL.query.await("SHOW TABLES LIKE '0r_pausemenu_global_markers'")
-        if not globals or #globals == 0 then
+        if not tableExists('nightreign_pausemenu_global_markers') then
             LT.Debug.Error('Global marker table is missing. Set threeDMap.autoDB to create it.')
             return
         end

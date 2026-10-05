@@ -26,9 +26,10 @@ return {
     debug = 1,
 
     --- Check updates for the script on startup.
-    --- Recommended to stay true.
+    --- The feed belongs to the original release and is looked up by resource name,
+    --- so it has no entry for nightreign_pausemenu. Off by default.
     --- @type boolean
-    checkVersion = true,
+    checkVersion = false,
 
     -- ════════════════════════════════════════════════════════════════════════════════════════════
     -- 🧩 General Settings
@@ -55,7 +56,7 @@ return {
 
         --- Shown beside the logo on the pause screen.
         --- @type string
-        serverName = '0Resmon Roleplay',
+        serverName = 'Nightreign Roleplay',
 
         --- Show logo + server name on pause / settings / stats / 3D map.
         --- @type boolean
@@ -120,7 +121,8 @@ return {
         --- @type boolean
         enabled = true,
 
-        --- Create `0r_pausemenu_markers` / `0r_pausemenu_global_markers` when missing.
+        --- Create `nightreign_pausemenu_markers` / `nightreign_pausemenu_global_markers` when missing.
+        --- Old `0r_pausemenu_*` tables are renamed to these automatically, keeping their blips.
         --- @type boolean
         autoDB = true,
 
@@ -155,7 +157,7 @@ return {
 
         --- ACE permission required for the global blip creator.
         --- @type string
-        adminAce = '0r-pausemenu.globalblips',
+        adminAce = 'nightreign_pausemenu.globalblips',
 
         --- Static categories. Not written to the database and cannot be deleted.
         --- Category: `id`, `label` (locale key or plain string).

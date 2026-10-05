@@ -667,7 +667,7 @@ const displayValue = (row: GameSettingRow) => {
 	return sharedLabel(source, categoryIndex());
 };
 
-const langDismissKey = "0r-pausemenu:exp-lang-dismiss";
+const langDismissKey = EXP_LANG_DISMISS_KEY;
 const localeStore = useLocaleStore();
 // GetCurrentLanguage() ids that already match a script locale (1 fr, 2 de, 3 it, 4 es, 6 pl, 11 es-MX).
 const gameLanguages: Record<string, number[]> = { fr: [1], de: [2], it: [3], es: [4, 11], pl: [6] };

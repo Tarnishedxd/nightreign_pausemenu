@@ -9,6 +9,7 @@
 export {}
 declare global {
   const BLIP_COLOUR_SWATCHES: typeof import('./src/utils/blipColours').BLIP_COLOUR_SWATCHES
+  const EXP_LANG_DISMISS_KEY: typeof import('./src/composables/usePreferences').EXP_LANG_DISMISS_KEY
   const EffectScope: typeof import('vue').EffectScope
   const _t: typeof import('./src/composables/useLocale')._t
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
@@ -147,6 +148,7 @@ declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
     readonly BLIP_COLOUR_SWATCHES: UnwrapRef<typeof import('./src/utils/blipColours')['BLIP_COLOUR_SWATCHES']>
+    readonly EXP_LANG_DISMISS_KEY: UnwrapRef<typeof import('./src/composables/usePreferences')['EXP_LANG_DISMISS_KEY']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly _t: UnwrapRef<typeof import('./src/composables/useLocale')['_t']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>

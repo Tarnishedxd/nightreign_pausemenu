@@ -9,10 +9,11 @@ local typingBlocked <const> = { 21, 22, 24, 25, 30, 31, 32, 33, 34, 35, 36, 44, 
 -- RETURN 3D ANIM
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
-local return3dAnimKvp <const> = '0r_pausemenu_return3dAnim'
+local return3dAnimKvp <const> = 'nightreign_pausemenu_return3dAnim'
+local legacyReturn3dAnimKvp <const> = '0r_pausemenu_return3dAnim'
 --- @return boolean
 local function isReturn3dAnimEnabled()
-    local value = GetResourceKvpString(return3dAnimKvp)
+    local value = GetResourceKvpString(return3dAnimKvp) or GetResourceKvpString(legacyReturn3dAnimKvp)
     if not value or value == '' then
         return true
     end

@@ -110,6 +110,7 @@ function PauseClass:new()
     self.idleDict = nil
     self.headerBusy = false
     self.headerAt = 0
+    self.restoreRadar = false
     return self
 end
 
@@ -362,13 +363,18 @@ end
 function PauseClass:runHook(name)
     local fn = cfg.pause[name]
     if type(fn) ~= 'function' then return end
-    fn()
+    -- A broken user hook must not leave the pause menu half open/closed.
+    local ok, err = pcall(fn)
+    if not ok then
+        LT.Debug.Error('config.pause.%s failed: %s', name, tostring(err))
+    end
 end
 
 function PauseClass:startSuppressLoop()
     if self.suppressThread then return end
     self.suppressThread = true
     local showRadar = not IsRadarHidden()
+    self.restoreRadar = showRadar
     CreateThread(function()
         while self.suppressThread and (self.open or (Camera and Camera:isOpen()) or (SettingsBridge and SettingsBridge.active) or nativeMapOpen()) do
             DisableControlAction(0, 199, true)
@@ -392,6 +398,7 @@ function PauseClass:startSuppressLoop()
             Wait(0)
         end
         self.suppressThread = false
+        self.restoreRadar = false
         if showRadar then
             DisplayRadar(true)
         end
@@ -763,4 +770,9 @@ end)
 
 LT.Hooks.Stop(function()
     Pause:stopPortrait(false)
+    -- The suppress loop dies with the resource; give the radar back if it hid it.
+    if Pause.restoreRadar then
+        Pause.restoreRadar = false
+        DisplayRadar(true)
+    end
 end)

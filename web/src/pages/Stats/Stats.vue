@@ -203,7 +203,8 @@ const formatDistance = (metres: number) => {
 	const value = Math.max(0, metres);
 	if (value >= 1000) {
 		const km = value / 1000;
-		const text = km >= 10 ? String(Math.round(km)) : km.toFixed(1);
+		const digits = km >= 10 ? 0 : 1;
+		const text = new Intl.NumberFormat(localeTag(), { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(km);
 		return _t("ui.stats.kilometres", "%s km", text);
 	}
 	return _t("ui.stats.metres", "%d m", Math.round(value));

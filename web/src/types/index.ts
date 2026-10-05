@@ -223,6 +223,7 @@ export type MarkersStore = {
 	sheet: MarkerSheet;
 	notice: string;
 	noticeKind: MarkerNoticeKind;
+	noticeSerial: number;
 	selected: string | null;
 	searchHits: string[] | null;
 };

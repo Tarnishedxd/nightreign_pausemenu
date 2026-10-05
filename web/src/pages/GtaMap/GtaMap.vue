@@ -89,11 +89,27 @@
 				<span>{{ _t("ui.settings.close", "Close") }}</span>
 			</button>
 		</div>
+
+		<div class="pointer-events-none fixed bottom-8 left-1/2 z-[6] -translate-x-1/2">
+			<Transition
+				enter-active-class="transition duration-200 ease-out"
+				enter-from-class="translate-y-3 opacity-0"
+				enter-to-class="translate-y-0 opacity-100"
+				leave-active-class="transition duration-200 ease-in"
+				leave-from-class="translate-y-0 opacity-100"
+				leave-to-class="translate-y-3 opacity-0">
+				<div v-if="toastText" class="map-bar flex max-w-md items-center gap-3 rounded-sm px-4 py-3 text-sm text-white">
+					<CircleCheck v-if="toastOk" :size="iS(18)" class="shrink-0 text-emerald-300" />
+					<CircleAlert v-else :size="iS(18)" class="shrink-0 text-red-300" />
+					<span class="min-w-0">{{ toastText }}</span>
+				</div>
+			</Transition>
+		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { ArrowLeftRight, ArrowUpDown, ChevronLeft, ChevronRight, Search } from "@lucide/vue";
+import { ArrowLeftRight, ArrowUpDown, ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Search } from "@lucide/vue";
 import type { LegendRow } from "@/types";
 
 const { panelStyle } = usePreferences();
@@ -179,6 +195,36 @@ const closeMap = () => {
 	fetchNui("GtaMapClose", {}, "ok");
 };
 
+// Waypoint feedback pushed by the client (legend.toast); each push bumps the token.
+const toastText = ref("");
+const toastOk = ref(true);
+let toastTimer = 0;
+
+watch(
+	() => legend.value.toast.token,
+	(token) => {
+		const toast = legend.value.toast;
+		if (!token || !toast.kind) return;
+		window.clearTimeout(toastTimer);
+		if (toast.kind === "set") {
+			toastText.value =
+				toast.count > 1
+					? _t("ui.map.waypointSetCount", "Waypoint set · %s %d/%d", toast.label, toast.cycle, toast.count)
+					: _t("ui.map.waypointSet", "Waypoint set · %s", toast.label);
+			toastOk.value = true;
+		} else if (toast.kind === "removed") {
+			toastText.value = _t("ui.map.waypointRemoved", "Waypoint removed");
+			toastOk.value = true;
+		} else {
+			toastText.value = _t("ui.map.noBlip", "No blip to route to");
+			toastOk.value = false;
+		}
+		toastTimer = window.setTimeout(() => {
+			toastText.value = "";
+		}, 2400);
+	},
+);
+
 const onKeyDown = (event: KeyboardEvent) => {
 	if (event.key === "Escape") {
 		closeMap();
@@ -232,6 +278,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+	window.clearTimeout(toastTimer);
 	window.removeEventListener("keydown", onKeyDown);
 	setOver(false);
 	setTyping(false);

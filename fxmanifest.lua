@@ -1,8 +1,9 @@
 fx_version 'cerulean'
 game 'gta5'
 
+name 'nightreign_pausemenu'
 author 'laot'
-description ''
+description 'Nightreign pause menu'
 version '1.0.0'
 
 client_scripts {

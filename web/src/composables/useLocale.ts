@@ -56,3 +56,16 @@ export const _t = (key: string, fallback?: string, ...args: any[]): string => {
 
 	return text;
 };
+
+/**
+ * BCP 47 tag of the active locale (from `ui.localeCode`), used for dates and numbers.
+ * Falls back to `en-US` when the tag is missing or not supported by the browser.
+ */
+export const localeTag = (): string => {
+	const tag = _t("ui.localeCode", "en-US");
+	try {
+		return Intl.getCanonicalLocales(tag)[0] ?? "en-US";
+	} catch {
+		return "en-US";
+	}
+};

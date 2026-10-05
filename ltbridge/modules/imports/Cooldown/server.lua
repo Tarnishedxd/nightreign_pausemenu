@@ -62,6 +62,9 @@ CreateThread(function()
                         lastTriggerTime[identifier][key] = nil
                     end
                 end
+                if next(data) == nil then
+                    lastTriggerTime[identifier] = nil
+                end
             end
         else
             Wait(120000) 

@@ -4,7 +4,23 @@ export type Preferences = {
 	darkMode: boolean;
 };
 
-const PREFERENCES_KEY = "0r-pausemenu:panel";
+const PREFERENCES_KEY = "nightreign_pausemenu:panel";
+export const EXP_LANG_DISMISS_KEY = "nightreign_pausemenu:exp-lang-dismiss";
+
+// Carry values saved under the old resource name over to the new keys once.
+const legacyStorageKeys: [string, string][] = [
+	["0r-pausemenu:panel", PREFERENCES_KEY],
+	["0r-pausemenu:exp-lang-dismiss", EXP_LANG_DISMISS_KEY],
+];
+try {
+	for (const [legacy, current] of legacyStorageKeys) {
+		const value = localStorage.getItem(legacy);
+		if (value !== null && localStorage.getItem(current) === null) localStorage.setItem(current, value);
+		localStorage.removeItem(legacy);
+	}
+} catch {
+	// Storage can be unavailable; defaults are used then.
+}
 
 const preferencesDefaults: Preferences = {
 	primary: "#fafafa",

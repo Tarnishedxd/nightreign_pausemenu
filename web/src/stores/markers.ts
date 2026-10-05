@@ -20,6 +20,7 @@ export const useMarkersStore = defineStore("markers", {
 		},
 		notice: "",
 		noticeKind: "error",
+		noticeSerial: 0,
 		selected: null,
 		searchHits: null,
 	}),
@@ -38,6 +39,7 @@ export const useMarkersStore = defineStore("markers", {
 		setNotice(text: string, kind: MarkerNoticeKind = "error") {
 			this.notice = text;
 			this.noticeKind = kind;
+			this.noticeSerial += 1;
 		},
 		clearNotice() {
 			this.notice = "";

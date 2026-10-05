@@ -2223,7 +2223,7 @@ function SettingsBridgeClass:start()
         return self:fail(_t('client.errors.gfx', 'Patched GFX not loaded. Please restart the FiveM client.'))
     end
 
-    local batchSize = GetConvarInt('0r_pausemenu_dump_batch', 16)
+    local batchSize = GetConvarInt('nightreign_pausemenu_dump_batch', 16)
     self.dumpBatchSize = math.max(1, math.min(16, batchSize))
     self.lastVersion = self:readInt('GET_BRIDGE_VERSION', returnTimeout) or 0
     local navigation = self:waitForNavigation(2500)

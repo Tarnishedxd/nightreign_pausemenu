@@ -16,31 +16,31 @@ type Control = {
 	label: string;
 };
 
-const CONTROLS: Control[] = [
+const CONTROLS = computed<Control[]>(() => [
 	{
 		id: "pan",
-		key: "LMB",
+		key: _t("ui.keys.lmb", "LMB"),
 		label: _t("ui.controls.pan", "Pan"),
 	},
 	{
 		id: "waypoint",
-		key: "2 x LMB",
+		key: _t("ui.keys.doubleLmb", "2 x LMB"),
 		label: _t("ui.controls.waypoint", "Set waypoint"),
 	},
 	{
 		id: "rotate",
-		key: "RMB",
+		key: _t("ui.keys.rmb", "RMB"),
 		label: _t("ui.controls.rotate", "Rotate"),
 	},
 	{
 		id: "zoom",
-		key: "WHEEL",
+		key: _t("ui.keys.wheel", "WHEEL"),
 		label: _t("ui.controls.zoom", "Zoom In/Out"),
 	},
 	{
 		id: "focus",
-		key: "SPACE",
+		key: _t("ui.keys.space", "SPACE"),
 		label: _t("ui.controls.focusPlayer", "Focus Player"),
 	},
-];
+]);
 </script>

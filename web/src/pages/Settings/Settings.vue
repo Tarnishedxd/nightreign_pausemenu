@@ -387,7 +387,7 @@
 					<component :is="hint.icon" v-if="hint.icon" :size="iS(16)" />
 					<template v-else>{{ hint.key }}</template>
 				</span>
-				{{ _t(hint.locale) }}
+				{{ hint.label }}
 			</span>
 			<span v-if="settings.pendingCount" class="h-5 w-px bg-white/20" aria-hidden="true" />
 			<button
@@ -495,13 +495,13 @@ const editIntent = "__edit";
 const regularMenuIntent = "__regular";
 const editPane = ref<{ nudge: (direction: number) => void; activate: () => void } | null>(null);
 const customizeOrder = ["color", "labels", "darkMode", "portrait", "return3dAnim", "reset"];
-const keyHints: { icon?: Component; key?: string; locale: string }[] = [
-	{ icon: ArrowUpDown, locale: _t("ui.settings.move", "Move") },
-	{ icon: ArrowLeftRight, locale: _t("ui.settings.change", "Change") },
-	{ key: "ENTER", locale: _t("ui.settings.select", "Select") },
-	{ key: "BACK", locale: _t("ui.settings.categories", "Categories") },
-	{ key: "ESC", locale: _t("ui.settings.close", "Close") },
-];
+const keyHints = computed<{ icon?: Component; key?: string; locale: string; label: string }[]>(() => [
+	{ icon: ArrowUpDown, locale: "move", label: _t("ui.settings.move", "Move") },
+	{ icon: ArrowLeftRight, locale: "change", label: _t("ui.settings.change", "Change") },
+	{ key: "ENTER", locale: "select", label: _t("ui.settings.select", "Select") },
+	{ key: "BACK", locale: "categories", label: _t("ui.settings.categories", "Categories") },
+	{ key: "ESC", locale: "close", label: _t("ui.settings.close", "Close") },
+]);
 
 const pageTitle = () => {
 	if (view.value === "preferences") return _t("ui.settings.preferences.title", "Preferences");
@@ -667,7 +667,10 @@ const displayValue = (row: GameSettingRow) => {
 	return sharedLabel(source, categoryIndex());
 };
 
-const langDismissKey = "0r-pausemenu:exp-lang-dismiss";
+const langDismissKey = EXP_LANG_DISMISS_KEY;
+const localeStore = useLocaleStore();
+// GetCurrentLanguage() ids that already match a script locale (1 fr, 2 de, 3 it, 4 es, 6 pl, 11 es-MX).
+const gameLanguages: Record<string, number[]> = { fr: [1], de: [2], it: [3], es: [4, 11], pl: [6] };
 const langOpen = ref(false);
 const hideLangAgain = ref(false);
 let langChecked = false;
@@ -701,6 +704,8 @@ watch(
 		if (!experimentalLabels.value || localStorage.getItem(langDismissKey) === "1") return;
 		void fetchNui<{ language: number }>("SettingsLanguage", {}, { language: 0 }).then((result) => {
 			if (result.language === 0) return;
+			// English labels need no translation, and a game already in the locale's language needs no switch.
+			if (localeStore.locale === "en" || gameLanguages[localeStore.locale]?.includes(result.language)) return;
 			hideLangAgain.value = false;
 			langOpen.value = true;
 		});

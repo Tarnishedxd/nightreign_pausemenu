@@ -1053,5 +1053,7 @@ end)
 LT.Hooks.Stop(function()
     if not NativeMap:isOpen() then return end
     LT.Debug.Warn('resource stopping, closing the map')
+    -- Do not reopen the pause screen (and its portrait camera) while stopping.
+    NativeMap.returnToPause = false
     NativeMap:close()
 end)

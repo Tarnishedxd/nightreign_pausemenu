@@ -8,6 +8,7 @@
 			"parse": "Settings categories were read but could not be parsed."
 		},
 		"popup": {
+			"alert": "Alert",
 			"apply": {
 				"body": "Apply %d pending graphics changes?",
 				"cancel": "Cancel",
@@ -33,7 +34,15 @@
 			"waypoint": "Set waypoint",
 			"zoom": "Zoom In/Out"
 		},
+		"keys": {
+			"lmb": "LMB",
+			"doubleLmb": "2 x LMB",
+			"rmb": "RMB",
+			"wheel": "WHEEL",
+			"space": "SPACE"
+		},
 		"localeName": "English",
+		"localeCode": "en-US",
 		"map": {
 			"close": "Close Map",
 			"empty": "Nothing matches",
@@ -95,6 +104,7 @@
 			"shareTitle": "Share the blip",
 			"shortRange": "Short range",
 			"showOn2d": "Show on 2D Map",
+			"unknown": "Unknown",
 			"waypoint": "Set waypoint",
 			"waypointName": "Waypoint",
 			"waypointRemoved": "Waypoint removed",

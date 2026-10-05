@@ -26,9 +26,10 @@ return {
     debug = 1,
 
     --- Check updates for the script on startup.
-    --- Recommended to stay true.
+    --- The feed belongs to the original release and is looked up by resource name,
+    --- so it has no entry for nightreign_pausemenu. Off by default.
     --- @type boolean
-    checkVersion = true,
+    checkVersion = false,
 
     -- ════════════════════════════════════════════════════════════════════════════════════════════
     -- 🧩 General Settings
@@ -36,7 +37,9 @@ return {
 
     --- Set the locale key.
     --- Must be a valid locale `locales/*.json` file.
-    --- @type string
+    --- Available: 'en', 'tr', 'hu', 'de', 'fr', 'es', 'it', 'pl', 'ro'
+    --- Missing keys fall back to English; an unknown locale falls back to English with a console warning.
+    --- @type 'en' | 'tr' | 'hu' | 'de' | 'fr' | 'es' | 'it' | 'pl' | 'ro' | string
     locale = 'en',
 
     --- @type string Currency symbol (e.g. USD, TRY, EUR etc.)
@@ -53,7 +56,7 @@ return {
 
         --- Shown beside the logo on the pause screen.
         --- @type string
-        serverName = '0Resmon Roleplay',
+        serverName = 'Nightreign Roleplay',
 
         --- Show logo + server name on pause / settings / stats / 3D map.
         --- @type boolean
@@ -118,7 +121,8 @@ return {
         --- @type boolean
         enabled = true,
 
-        --- Create `0r_pausemenu_markers` / `0r_pausemenu_global_markers` when missing.
+        --- Create `nightreign_pausemenu_markers` / `nightreign_pausemenu_global_markers` when missing.
+        --- Old `0r_pausemenu_*` tables are renamed to these automatically, keeping their blips.
         --- @type boolean
         autoDB = true,
 
@@ -153,7 +157,7 @@ return {
 
         --- ACE permission required for the global blip creator.
         --- @type string
-        adminAce = '0r-pausemenu.globalblips',
+        adminAce = 'nightreign_pausemenu.globalblips',
 
         --- Static categories. Not written to the database and cannot be deleted.
         --- Category: `id`, `label` (locale key or plain string).

@@ -437,7 +437,7 @@ import {
 } from "@lucide/vue";
 const { panelStyle } = usePreferences();
 const markers = useMarkersStore();
-const { sheet, notice, selected, points, groups, requests } = storeToRefs(markers);
+const { sheet, notice, noticeSerial, selected, points, groups, requests } = storeToRefs(markers);
 
 const open = ref(true);
 let noticeTimer = 0;
@@ -552,7 +552,11 @@ const sharedWhen = (at?: number) => {
 	if (!at) return "";
 	const date = new Date(at * 1000);
 	if (Number.isNaN(date.getTime())) return "";
-	return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+	try {
+		return date.toLocaleDateString(localeTag(), { day: "numeric", month: "short", year: "numeric" });
+	} catch {
+		return date.toLocaleDateString();
+	}
 };
 
 const sharedLine = computed(() => {
@@ -807,7 +811,8 @@ watch(points, (next) => {
 	markers.deselectIfMissing(next.map((point) => point.id));
 });
 
-watch(notice, (text) => {
+// Watch the serial too: the same notice twice in a row (e.g. two cooldown errors) must still unlock the form.
+watch([notice, noticeSerial], ([text]) => {
 	window.clearTimeout(noticeTimer);
 	if (text) {
 		saving.value = false;

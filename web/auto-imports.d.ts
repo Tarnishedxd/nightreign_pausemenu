@@ -9,6 +9,7 @@
 export {}
 declare global {
   const BLIP_COLOUR_SWATCHES: typeof import('./src/utils/blipColours').BLIP_COLOUR_SWATCHES
+  const EXP_LANG_DISMISS_KEY: typeof import('./src/composables/usePreferences').EXP_LANG_DISMISS_KEY
   const EffectScope: typeof import('vue').EffectScope
   const _t: typeof import('./src/composables/useLocale')._t
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
@@ -45,6 +46,7 @@ declare global {
   const isReadonly: typeof import('vue').isReadonly
   const isRef: typeof import('vue').isRef
   const isShallow: typeof import('vue').isShallow
+  const localeTag: typeof import('./src/composables/useLocale').localeTag
   const mapActions: typeof import('pinia').mapActions
   const mapGetters: typeof import('pinia').mapGetters
   const mapState: typeof import('pinia').mapState
@@ -146,6 +148,7 @@ declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
     readonly BLIP_COLOUR_SWATCHES: UnwrapRef<typeof import('./src/utils/blipColours')['BLIP_COLOUR_SWATCHES']>
+    readonly EXP_LANG_DISMISS_KEY: UnwrapRef<typeof import('./src/composables/usePreferences')['EXP_LANG_DISMISS_KEY']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly _t: UnwrapRef<typeof import('./src/composables/useLocale')['_t']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
@@ -182,6 +185,7 @@ declare module 'vue' {
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
     readonly isShallow: UnwrapRef<typeof import('vue')['isShallow']>
+    readonly localeTag: UnwrapRef<typeof import('./src/composables/useLocale')['localeTag']>
     readonly mapActions: UnwrapRef<typeof import('pinia')['mapActions']>
     readonly mapGetters: UnwrapRef<typeof import('pinia')['mapGetters']>
     readonly mapState: UnwrapRef<typeof import('pinia')['mapState']>

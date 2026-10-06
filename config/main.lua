@@ -121,11 +121,16 @@ return {
             --- @type number
             blendOutMs = 750,
 
-            --- Metres of camera + look drift before a follow blend.
+            --- Let the camera follow the character when it moves or turns. Off: the camera stays
+            --- exactly where it opened.
+            --- @type boolean
+            follow = false,
+
+            --- Metres of camera + look drift before a follow blend (only with follow = true).
             --- @type number
             followMove = 0.45,
 
-            --- Portrait → updated portrait blend (ms).
+            --- Portrait → updated portrait blend (ms, only with follow = true).
             --- @type number
             followBlendMs = 700,
 

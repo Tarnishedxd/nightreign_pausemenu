@@ -235,7 +235,9 @@ function PauseClass:startPauseAnim()
         -- scenario, picks the male or female clips and owns the prop; ClearPedTasks plays the
         -- exit clip (e.g. takes it out of the mouth and flicks it away).
         self.pauseAnimClip = { scenario = scenario }
-        TaskStartScenarioInPlace(ped, scenario, 0, true)
+        -- timeToLeave < 0 sets IdleForever: with 0 the game ends the scenario after its shortest
+        -- run (lights the cigarette, then puts it away after a few seconds).
+        TaskStartScenarioInPlace(ped, scenario, -1, true)
         CreateThread(function()
             self:watchPauseAnim(gen, ped, function() return IsPedUsingScenario(ped, scenario) end)
         end)
@@ -375,6 +377,11 @@ function PauseClass:startPortrait()
     local coords, look = portraitPose(ped, side)
     if not self.cam or not DoesCamExist(self.cam) then
         self.cam = createNewCamera(coords, look, true)
+    else
+        -- reopened while the last camera was still blending out: it does not follow, so re-aim it
+        SetCamCoord(self.cam, coords.x, coords.y, coords.z)
+        PointCamAtCoord(self.cam, look.x, look.y, look.z)
+        SetCamActive(self.cam, true)
     end
     if self.retiredCam and self.retiredCam ~= self.cam then
         destroyCam(self.retiredCam)
@@ -384,6 +391,10 @@ function PauseClass:startPortrait()
     self.anchorPos = coords
     self.anchorLook = look
     RenderScriptCams(true, true, portrait.blendInMs, true, true)
+    self:playIdle(ped)
+    -- The camera holds the pose it opened with. Following the ped made it drift and turn on its
+    -- own whenever an animation moved or turned the character.
+    if portrait.follow ~= true then return end
     local gen <const> = self.portraitGen
     CreateThread(function()
         while self.open and self.portraitGen == gen do
@@ -402,7 +413,6 @@ function PauseClass:startPortrait()
             Wait(200)
         end
     end)
-    self:playIdle(ped)
 end
 
 --- @param blend boolean

@@ -91,12 +91,6 @@ export type KeyBindingRow = {
 
 export type SettingsRow = GameSettingRow | KeyBindingRow;
 
-export type KeyBindingPreview = {
-	groups: KeyBindingGroup[];
-	activeGroupId: string;
-	rows: KeyBindingRow[];
-};
-
 export type SettingsState = {
 	status: "idle" | "loading" | "ready" | "error";
 	build: string;
@@ -109,8 +103,6 @@ export type SettingsState = {
 	keyBindings: boolean;
 	keyGroups: KeyBindingGroup[];
 	activeKeyGroupId: string;
-	/** Last key bindings seen, shown read-only while GTA builds the pane. */
-	keyPreview: false | KeyBindingPreview;
 	listenIndex: number;
 	listenSlot: "" | "primary" | "secondary";
 	listenPhase: "" | "wait" | "press";

@@ -19,7 +19,7 @@
 		<div
 			class="grid min-h-0 flex-1 pt-6"
 			:class="
-				settings.keyBindings && view === 'settings'
+				shownKeyBindings && view === 'settings'
 					? 'grid-cols-[17rem_16rem_minmax(0,1fr)]'
 					: 'grid-cols-[17rem_minmax(0,1fr)]'
 			">
@@ -34,7 +34,7 @@
 					leave-active-class="transition duration-150 ease-in"
 					leave-from-class="opacity-100"
 					leave-to-class="opacity-0">
-					<div v-if="!settings.categories.length" key="category-skeleton" class="flex flex-col gap-2">
+					<div v-if="!shownCategories.length" key="category-skeleton" class="flex flex-col gap-2">
 						<div
 							v-for="(width, index) in categorySkeletonWidths"
 							:key="index"
@@ -49,10 +49,10 @@
 								:style="{ width: `${width}%` }" />
 						</div>
 					</div>
-					<div v-else key="categories">
+					<div v-else key="categories" :class="previewCategories ? 'pointer-events-none' : ''">
 						<div class="flex flex-col gap-2">
 							<button
-								v-for="(category, index) in settings.categories"
+								v-for="(category, index) in shownCategories"
 								:key="category.id"
 								type="button"
 								class="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-base font-medium transition-colors duration-200"
@@ -67,16 +67,16 @@
 						<button
 							type="button"
 							class="flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-base font-medium transition-colors duration-200"
-							:class="categoryClass(editIntent, settings.categories.length)"
-							@click="onCategoryClick(editIntent, settings.categories.length)">
+							:class="categoryClass(editIntent, shownCategories.length)"
+							@click="onCategoryClick(editIntent, shownCategories.length)">
 							<Paintbrush :size="iS(18)" class="shrink-0 opacity-80" />
 							{{ _t("ui.settings.preferences.title", "Preferences") }}
 						</button>
 						<button
 							type="button"
 							class="mt-2 flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-base font-medium transition-colors duration-200"
-							:class="categoryClass(regularMenuIntent, settings.categories.length + 1)"
-							@click="onCategoryClick(regularMenuIntent, settings.categories.length + 1)">
+							:class="categoryClass(regularMenuIntent, shownCategories.length + 1)"
+							@click="onCategoryClick(regularMenuIntent, shownCategories.length + 1)">
 							<Menu :size="iS(18)" class="shrink-0 opacity-80" />
 							{{ _t("ui.settings.regularMenu", "Regular Menu") }}
 						</button>
@@ -85,7 +85,7 @@
 			</aside>
 
 			<aside
-				v-if="settings.keyBindings && view === 'settings'"
+				v-if="shownKeyBindings && view === 'settings'"
 				class="min-h-0 overflow-y-auto border-r border-white/15 px-5 [scrollbar-color:rgb(255_255_255/0.22)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar]:w-1.5">
 				<Transition
 					appear
@@ -108,7 +108,7 @@
 								:style="{ width: `${width}%` }" />
 						</div>
 					</div>
-					<div v-else key="groups" class="flex flex-col gap-2" :class="keyPreview ? 'pointer-events-none' : ''">
+					<div v-else key="groups" class="flex flex-col gap-2" :class="previewing ? 'pointer-events-none' : ''">
 						<button
 							v-for="(group, index) in shownKeyGroups"
 							:key="group.id"
@@ -135,7 +135,7 @@
 						:placeholder="_t('ui.settings.search', 'Search')"
 						class="w-72 rounded-md border border-white/10 bg-white/10 px-3 py-2 text-base text-white shadow-[inset_0_0_6px_rgb(255_255_255/0.04)] outline-none transition-colors duration-200 placeholder:text-white/35 focus:border-white/30" />
 				</div>
-				<p v-if="settings.keyBindings && view === 'settings'" class="mb-3 text-sm text-white/45">
+				<p v-if="shownKeyBindings && view === 'settings'" class="mb-3 text-sm text-white/45">
 					{{
 						_t(
 							"ui.settings.keys.secondaryNote",
@@ -152,7 +152,7 @@
 					leave-from-class="opacity-100"
 					leave-to-class="opacity-0">
 					<div v-if="holdReveal || loadingRows()" key="skeleton" class="flex flex-col gap-2 pr-3">
-						<template v-if="settings.keyBindings">
+						<template v-if="shownKeyBindings">
 							<article
 								v-for="(row, index) in keySkeletonRows"
 								:key="index"
@@ -205,9 +205,9 @@
 						<p class="text-base text-white/55">{{ _t("ui.settings.empty", "No matching settings") }}</p>
 					</div>
 					<div
-						v-else-if="settings.keyBindings"
+						v-else-if="shownKeyBindings"
 						key="keys"
-						:class="keyPreview ? 'pointer-events-none opacity-80' : ''"
+						:class="previewing ? 'pointer-events-none opacity-80' : ''"
 						class="min-h-0 flex-1 overflow-y-auto pr-3 [scrollbar-color:rgb(255_255_255/0.22)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar]:w-1.5">
 						<div class="mb-2 grid grid-cols-[7fr_1.5fr] items-center gap-3 px-4 text-sm text-white/40">
 							<span>{{ _t("ui.settings.keys.action", "Action") }}</span>
@@ -242,7 +242,8 @@
 					</div>
 					<div
 						v-else
-						:key="settings.activeCategoryId"
+						:key="shownCategoryId"
+						:class="previewing ? 'pointer-events-none opacity-80' : ''"
 						class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-3 [scrollbar-color:rgb(255_255_255/0.22)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar]:w-1.5">
 						<template v-for="row in gameSettingRows()" :key="row.id">
 							<div v-if="row.kind === 'info'" class="py-5 text-center text-base text-white/70">
@@ -512,14 +513,46 @@ const pageTitle = () => {
 
 // rows
 const query = ref("");
-// While GTA builds the key bindings pane (a few seconds), show the last list seen, read-only.
-const keyPreview = computed(() => {
+// While GTA builds its settings frontend (on open, and on every category it enters) show the
+// last categories / rows seen this session, read-only, instead of skeletons or stale rows.
+const { cache: settingsCache, remember: rememberSettings, previewKeyGroup, hasPreview } = useSettingsCache();
+const pendingCategoryId = ref("");
+watch(
+	() => {
+		const state = settings.value;
+		return [state.status, state.activeCategoryId, state.version, state.rows.length, state.categories.length, state.activeKeyGroupId];
+	},
+	() => {
+		const state = settings.value;
+		rememberSettings(state);
+		if (state.status === "error" || (state.status === "ready" && state.activeCategoryId === pendingCategoryId.value)) {
+			pendingCategoryId.value = "";
+		}
+	},
+	{ immediate: true },
+);
+const previewTarget = computed(() => {
 	const state = settings.value;
-	if (!state.keyBindings || state.status !== "loading" || state.rows.length || !state.keyPreview) return null;
-	return state.keyPreview;
+	if (state.status !== "loading" || view.value !== "settings") return "";
+	if (pendingCategoryId.value && pendingCategoryId.value !== state.activeCategoryId) return pendingCategoryId.value;
+	// a fresh start always opens the first category
+	if (!state.categories.length && !state.activeCategoryId) return settingsCache.categories[0]?.id ?? "";
+	return "";
 });
-const shownKeyGroups = computed(() => keyPreview.value?.groups ?? settings.value.keyGroups);
-const sourceRows = computed<SettingsRow[]>(() => keyPreview.value?.rows ?? settings.value.rows);
+const previewing = computed(() => hasPreview(previewTarget.value));
+const previewCategories = computed(() => !settings.value.categories.length && settings.value.status === "loading" && settingsCache.categories.length > 0);
+const shownCategories = computed(() => (previewCategories.value ? settingsCache.categories : settings.value.categories));
+const shownCategoryId = computed(() => (previewing.value ? previewTarget.value : settings.value.activeCategoryId));
+const shownKeyBindings = computed(() => (previewing.value ? !!settingsCache.keyCategories[previewTarget.value] : settings.value.keyBindings));
+const shownKeyGroups = computed(() =>
+	previewing.value && shownKeyBindings.value ? (settingsCache.keyGroups[previewTarget.value] ?? []) : settings.value.keyGroups,
+);
+const sourceRows = computed<SettingsRow[]>(() => {
+	if (!previewing.value) return settings.value.rows;
+	const target = previewTarget.value;
+	if (shownKeyBindings.value) return settingsCache.keyRows[previewKeyGroup(target)] ?? [];
+	return settingsCache.rows[target] ?? [];
+});
 const filteredRows = computed(() => {
 	const search = query.value.toLocaleLowerCase();
 	if (!search) return sourceRows.value;
@@ -532,11 +565,12 @@ const filteredRows = computed(() => {
 			.includes(search);
 	});
 });
-const activeKeyGroupId = computed(
-	() => keyPreview.value?.activeGroupId || settings.value.activeKeyGroupId || shownKeyGroups.value[0]?.id || "",
-);
+const activeKeyGroupId = computed(() => {
+	if (previewing.value && shownKeyBindings.value) return previewKeyGroup(previewTarget.value);
+	return settings.value.activeKeyGroupId || shownKeyGroups.value[0]?.id || "";
+});
 const listedRows = computed(() => {
-	if (!settings.value.keyBindings) return filteredRows.value;
+	if (!shownKeyBindings.value) return filteredRows.value;
 	const groupId = activeKeyGroupId.value;
 	const keyed = filteredRows.value.filter((row): row is KeyBindingRow => row.type === "keybind");
 	const matched = keyed.filter((row) => row.groupId === groupId);
@@ -549,13 +583,13 @@ const isNavigable = (row: SettingsRow) => {
 	if (row.type === "keybind") return true;
 	return row.kind === "slider" || row.kind === "options" || row.kind === "cycled" || row.kind === "button" || row.kind === "locked";
 };
-const navigableRows = () => (settings.value.keyBindings ? listedRows.value : filteredRows.value).filter(isNavigable);
+const navigableRows = () => (shownKeyBindings.value ? listedRows.value : filteredRows.value).filter(isNavigable);
 const firstNavigableId = () => navigableRows()[0]?.id ?? "";
 
 // categories
 const categorySkeletonWidths = [72, 54, 84, 48, 66, 78, 42, 60, 88, 56, 70];
 const keyGroupSkeletonWidths = [68, 54, 76, 48, 82, 60, 44, 70, 58, 86, 50, 64, 72];
-const activeCategory = () => settings.value.categories.find((category) => category.id === settings.value.activeCategoryId);
+const activeCategory = () => shownCategories.value.find((category) => category.id === shownCategoryId.value);
 const categoryIcons: Component[] = [Gamepad2, Mouse, Keyboard, Volume2, Camera, Sun, Monitor, Sparkles, Mic, Clapperboard, Save];
 
 const categoryIcon = (index: number) => categoryIcons[index] ?? Sparkles;
@@ -589,7 +623,7 @@ const onGroupClick = (id: string, index: number) => {
 
 const categoryClass = (id: string, index: number) => {
 	const open =
-		id === editIntent ? view.value === "preferences" : view.value === "settings" && id === settings.value.activeCategoryId;
+		id === editIntent ? view.value === "preferences" : view.value === "settings" && id === shownCategoryId.value;
 	const cursor = focusZone.value === "categories" && settings.value.activeCategoryId !== "" && categoryCursor.value === index;
 	if (open) return "bg-[var(--panel-primary)] text-[var(--panel-ink)]";
 	if (cursor) return "bg-white/15 text-white";
@@ -738,7 +772,13 @@ const openCategory = async (id: string) => {
 	view.value = "settings";
 	if (id === settings.value.activeCategoryId) return;
 	selectedId.value = "";
-	await fetchNui("SettingsSetCategory", { id }, { ok: false });
+	// The game answers once the category is in (or failed), so the preview lasts exactly as long as the load.
+	pendingCategoryId.value = id;
+	try {
+		await fetchNui("SettingsSetCategory", { id }, { ok: false });
+	} finally {
+		if (pendingCategoryId.value === id) pendingCategoryId.value = "";
+	}
 };
 
 const selectCategory = async (id: string) => {
@@ -873,7 +913,7 @@ const { onKeyDown } = useSettingsNavigation({
 	customizeOrder,
 	alertOpen: () => alert.value.open,
 	listenActive: () => settings.value.listenIndex >= 0,
-	busy: () => settings.value.busy,
+	busy: () => settings.value.busy || previewing.value || previewCategories.value,
 	pendingCount: () => settings.value.pendingCount,
 	keyBindings: () => settings.value.keyBindings,
 	keyGroups: () => settings.value.keyGroups,

@@ -106,6 +106,7 @@ declare global {
   const useModel: typeof import('vue').useModel
   const usePreferences: typeof import('./src/composables/usePreferences').usePreferences
   const useScaler: typeof import('./src/composables/useScaler').useScaler
+  const useSettingsCache: typeof import('./src/composables/useSettingsCache').useSettingsCache
   const useSettingsNavigation: typeof import('./src/composables/useSettingsNavigation').useSettingsNavigation
   const useSettingsStore: typeof import('./src/stores/settings').useSettingsStore
   const useSlots: typeof import('vue').useSlots
@@ -138,7 +139,7 @@ declare global {
   export type { Hsv } from './src/utils/color'
   import('./src/utils/color')
   // @ts-ignore
-  export type { Page, StatSkillId, StatSkill, StatCareer, StatsPayload, LocaleStore, MapInfoState, SettingsCategory, SettingKind, GameSettingRow, KeyBindingGroup, KeyBindingRow, SettingsRow, KeyBindingPreview, SettingsState, GtaAlertButton, GtaAlertState, SettingsStore, MainStore, Player, MarkerGroup, MarkerShare, MarkerPoint, MarkerRequest, MarkerDraft, GlobalCategory, MarkerSheet, MarkerNoticeKind, MarkersStore, LegendKind, LegendRow, LegendGroup, LegendToast, LegendStatus, LegendState, LegendStore } from './src/types/index'
+  export type { Page, StatSkillId, StatSkill, StatCareer, StatsPayload, LocaleStore, MapInfoState, SettingsCategory, SettingKind, GameSettingRow, KeyBindingGroup, KeyBindingRow, SettingsRow, SettingsState, GtaAlertButton, GtaAlertState, SettingsStore, MainStore, Player, MarkerGroup, MarkerShare, MarkerPoint, MarkerRequest, MarkerDraft, GlobalCategory, MarkerSheet, MarkerNoticeKind, MarkersStore, LegendKind, LegendRow, LegendGroup, LegendToast, LegendStatus, LegendState, LegendStore } from './src/types/index'
   import('./src/types/index')
 }
 
@@ -243,6 +244,7 @@ declare module 'vue' {
     readonly useModel: UnwrapRef<typeof import('vue')['useModel']>
     readonly usePreferences: UnwrapRef<typeof import('./src/composables/usePreferences')['usePreferences']>
     readonly useScaler: UnwrapRef<typeof import('./src/composables/useScaler')['useScaler']>
+    readonly useSettingsCache: UnwrapRef<typeof import('./src/composables/useSettingsCache')['useSettingsCache']>
     readonly useSettingsNavigation: UnwrapRef<typeof import('./src/composables/useSettingsNavigation')['useSettingsNavigation']>
     readonly useSettingsStore: UnwrapRef<typeof import('./src/stores/settings')['useSettingsStore']>
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>

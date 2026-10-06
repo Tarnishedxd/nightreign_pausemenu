@@ -300,7 +300,6 @@ function SettingsBridgeClass:new()
         keyBindings = false,
         keyGroups = {},
         activeKeyGroupId = '',
-        keyPreview = false,
         listenIndex = -1,
         listenSlot = '',
         listenPhase = '',
@@ -933,63 +932,6 @@ function SettingsBridgeClass:makeKeyBindingRows(rows)
 end
 
 -- ════════════════════════════════════════════════════════════════════════════════════════════
--- KEY BINDINGS PREVIEW
--- ════════════════════════════════════════════════════════════════════════════════════════════
-
--- GTA takes a few seconds to build the key bindings pane. The last list seen is kept for the
--- whole session (settings restarts included) and shown read-only while the real one loads.
-local keyPreviewCache = { groups = nil, rowsByGroup = {}, lastGroupId = '' }
-
----@param groups table
-local function rememberPreviewGroups(groups)
-    local copy = {}
-    for index = 1, #groups do
-        local group = groups[index]
-        copy[index] = { id = group.id, label = group.label, index = group.index, button = group.button == true }
-    end
-    keyPreviewCache.groups = copy
-end
-
----@param rows table
-local function rememberPreviewRows(rows)
-    local byGroup = {}
-    for index = 1, #rows do
-        local row = rows[index]
-        if row.type == 'keybind' and row.groupId then
-            local list = byGroup[row.groupId]
-            if not list then
-                list = {}
-                byGroup[row.groupId] = list
-            end
-            list[#list + 1] = {
-                type = 'keybind', id = row.id, index = row.index, groupId = row.groupId,
-                action = row.action, resource = row.resource, primary = row.primary,
-                secondary = '', editable = false, command = '',
-            }
-        end
-    end
-    for groupId, list in pairs(byGroup) do
-        keyPreviewCache.rowsByGroup[groupId] = list
-        keyPreviewCache.lastGroupId = groupId
-    end
-end
-
----@return table|false
-local function keyPreviewState()
-    local groups = keyPreviewCache.groups
-    if not groups or #groups < 2 then return false end
-    -- GTA opens the pane on its first group; otherwise show the last one seen.
-    local groupId = groups[1].id
-    local rows = keyPreviewCache.rowsByGroup[groupId]
-    if not rows then
-        groupId = keyPreviewCache.lastGroupId
-        rows = keyPreviewCache.rowsByGroup[groupId]
-    end
-    if not rows or #rows == 0 then return false end
-    return { groups = groups, activeGroupId = groupId, rows = rows }
-end
-
--- ════════════════════════════════════════════════════════════════════════════════════════════
 -- ROWS
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -1003,7 +945,6 @@ function SettingsBridgeClass:publishKeyGroups(groups)
         end
     end
     self.state.keyGroups = groups
-    rememberPreviewGroups(groups)
     local active = self.state.activeKeyGroupId
     for index = 1, #groups do
         if groups[index].id == active then return end
@@ -1149,9 +1090,7 @@ function SettingsBridgeClass:publishRows(rows, column, version)
     self.cache[categoryId] = outputRows
     self.state.rows = outputRows
     self.state.keyBindings = keyBindings
-    self.state.keyPreview = false
     if keyBindings then
-        rememberPreviewRows(outputRows)
         self.state.vram = ''
         self.state.vramPercent = -1
     else
@@ -1297,14 +1236,12 @@ function SettingsBridgeClass:selectCategory(categoryId)
         self.state.rows = {}
         self.state.keyGroups = {}
         self.state.activeKeyGroupId = ''
-        self.state.keyPreview = keyPreviewState()
         self.state:sync()
         Wait(0)
     else
         self.state.keyBindings = false
         self.state.keyGroups = {}
         self.state.activeKeyGroupId = ''
-        self.state.keyPreview = false
         self.groupColumn = nil
     end
 
@@ -1342,7 +1279,6 @@ function SettingsBridgeClass:selectCategory(categoryId)
     end
 
     if not success then
-        self.state.keyPreview = false
         self.state.status = 'error'
         self.state.error = _t('client.errors.category', 'Category %s did not open after 3 attempts.', category.label)
         LT.Debug.Warn('settings category %s failed enter=%s version=%s->%s', category.index, tostring(lastEnter), lastVersion, lastNext)
@@ -2260,7 +2196,6 @@ function SettingsBridgeClass:start()
         keyBindings = false,
         keyGroups = {},
         activeKeyGroupId = '',
-        keyPreview = false,
         listenIndex = -1,
         listenSlot = '',
         listenPhase = '',
@@ -2365,7 +2300,6 @@ function SettingsBridgeClass:stop()
         keyBindings = false,
         keyGroups = {},
         activeKeyGroupId = '',
-        keyPreview = false,
         listenIndex = -1,
         listenSlot = '',
         listenPhase = '',

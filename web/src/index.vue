@@ -40,6 +40,11 @@
 			</div>
 		</div>
 	</div>
+	<!-- Draw the pause screen once, invisibly, as soon as the translations arrive: the first ESC
+	     then opens as fast as every later one (no cold component, font or image work). -->
+	<div v-if="prewarm && !visible" class="pointer-events-none fixed inset-0 invisible" aria-hidden="true">
+		<PauseHome prewarm />
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -58,4 +63,20 @@ useScaler(100);
 onMounted(() => {
 	announceReady();
 });
+
+const localeStore = useLocaleStore();
+const prewarm = ref(false);
+let prewarmed = false;
+watch(
+	() => localeStore.translations,
+	(translations) => {
+		if (prewarmed || visible.value || !translations || !Object.keys(translations).length) return;
+		prewarmed = true;
+		prewarm.value = true;
+		// a few frames are enough for layout, fonts and the logo; then drop it again
+		window.setTimeout(() => {
+			prewarm.value = false;
+		}, 250);
+	},
+);
 </script>

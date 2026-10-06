@@ -43,7 +43,7 @@
 						type="button"
 						class="flex h-full w-fit max-w-[16rem] cursor-pointer items-center gap-2 text-left"
 						@click="selectRow(row.id)">
-						<span class="truncate">{{ row.label }}</span>
+						<span class="truncate">{{ rowLabel(row) }}</span>
 						<BlipIcon :sprite="row.sprite" :colour="row.colour" :size="iS(22)" />
 					</button>
 					<div v-if="isActive(row) && row.count > 1 && !row.fixed" class="flex shrink-0 items-center gap-0.5 tabular-nums">
@@ -118,10 +118,17 @@ const query = ref("");
 
 const showPanel = computed(() => legend.value.status === "loading" || legend.value.status === "ready");
 
+// GTA names the fixed rows itself, in the game's language: use ours.
+const rowLabel = (row: LegendRow) => {
+	if (row.kind === "waypoint") return _t("ui.map3d.waypointName", "Waypoint");
+	if (row.kind === "player") return _t("ui.map3d.you", "You");
+	return row.label;
+};
+
 const filteredRows = computed(() => {
 	const needle = query.value.trim().toLocaleLowerCase();
 	if (!needle) return legend.value.rows;
-	return legend.value.rows.filter((row) => row.label.toLocaleLowerCase().includes(needle));
+	return legend.value.rows.filter((row) => `${rowLabel(row)} ${row.label}`.toLocaleLowerCase().includes(needle));
 });
 
 const hasRows = computed(() => filteredRows.value.length > 0);

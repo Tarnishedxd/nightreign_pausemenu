@@ -118,6 +118,7 @@ function PauseClass:new()
     self.mapAnimOn = false
     self.mapAnimGen = 0
     self.mapAnimPed = nil
+    self.mapAnimClip = nil
     self.mapProp = nil
     return self
 end
@@ -143,7 +144,7 @@ function PauseClass:stopIdle()
 end
 
 -- ════════════════════════════════════════════════════════════════════════════════════════════
--- MAP ANIMATION (the character holds a map while any pause screen is open)
+-- MAP ANIMATION (the character reads a map while any pause screen is open)
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
 --- States where taking over the ped with an animation would break what it is doing.
@@ -155,7 +156,16 @@ local function canPlayMapAnim(ped)
     if IsPedInAnyVehicle(ped, true) or IsPedGettingIntoAVehicle(ped) or IsPedClimbing(ped) then return false end
     if IsPedCuffed(ped) or IsPedUsingAnyScenario(ped) or IsPedInParachuteFreeFall(ped) then return false end
     if GetPedParachuteState(ped) > 0 then return false end
+    -- A scenario puts the weapon away, which inventories see as an unequip.
+    if IsPedArmed(ped, 7) then return false end
     return true
+end
+
+--- @return string|nil
+local function mapScenario()
+    local name = mapAnim.scenario
+    if type(name) == 'string' and name ~= '' then return name end
+    return nil
 end
 
 --- @param ped number
@@ -191,9 +201,26 @@ local function deleteMapProp(obj)
     DeleteEntity(obj)
 end
 
+--- Let go when something else takes over the ped (death, ragdoll, a vehicle, another
+--- script's task) instead of leaving it holding the map.
+--- @param gen integer
+--- @param ped number
+--- @param stillOurs fun(): boolean
+function PauseClass:watchMapAnim(gen, ped, stillOurs)
+    while self.mapAnimGen == gen do
+        Wait(500)
+        if self.mapAnimGen ~= gen then break end
+        if cache.ped ~= ped or IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedInAnyVehicle(ped, true) or not stillOurs() then
+            self:stopMapAnim()
+            break
+        end
+    end
+end
+
 function PauseClass:startMapAnim()
     if mapAnim.enabled ~= true or self.mapAnimOn then return end
-    if type(mapAnim.dict) ~= 'string' or type(mapAnim.name) ~= 'string' then return end
+    local scenario <const> = mapScenario()
+    if not scenario and (type(mapAnim.dict) ~= 'string' or type(mapAnim.name) ~= 'string') then return end
     -- Character select / spawn screens animate the ped themselves.
     if not LT.Framework.IsPlayerLoaded() then return end
     local ped <const> = cache.ped
@@ -202,8 +229,20 @@ function PauseClass:startMapAnim()
     self.mapAnimGen = self.mapAnimGen + 1
     self.mapAnimPed = ped
     local gen <const> = self.mapAnimGen
-    local dict <const>, name <const> = mapAnim.dict, mapAnim.name
 
+    if scenario then
+        -- The game unfolds the map, cycles its reading / pointing / looking-around idles,
+        -- picks the male or female clips and owns the prop; ClearPedTasks folds it away.
+        self.mapAnimClip = { scenario = scenario }
+        TaskStartScenarioInPlace(ped, scenario, 0, true)
+        CreateThread(function()
+            self:watchMapAnim(gen, ped, function() return IsPedUsingScenario(ped, scenario) end)
+        end)
+        return
+    end
+
+    local dict <const>, name <const> = mapAnim.dict, mapAnim.name
+    self.mapAnimClip = { dict = dict, name = name }
     CreateThread(function()
         local ok = pcall(lib.requestAnimDict, dict)
         if not ok then
@@ -224,19 +263,7 @@ function PauseClass:startMapAnim()
         end
 
         TaskPlayAnim(ped, dict, name, 2.0, 2.0, -1, tonumber(mapAnim.flag) or 1, 0.0, false, false, false)
-
-        -- Let go when something else takes over the ped (death, ragdoll, a vehicle,
-        -- another script's animation) instead of leaving the prop in its hand.
-        while self.mapAnimGen == gen do
-            Wait(500)
-            if self.mapAnimGen ~= gen then break end
-            if cache.ped ~= ped or IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedInAnyVehicle(ped, true)
-                or not IsEntityPlayingAnim(ped, dict, name, 3)
-            then
-                self:stopMapAnim()
-                break
-            end
-        end
+        self:watchMapAnim(gen, ped, function() return IsEntityPlayingAnim(ped, dict, name, 3) end)
     end)
 end
 
@@ -245,16 +272,24 @@ function PauseClass:stopMapAnim()
     self.mapAnimOn = false
     self.mapAnimGen = self.mapAnimGen + 1
     local ped = self.mapAnimPed
+    local clip = self.mapAnimClip or {}
     self.mapAnimPed = nil
-    local dict, name = mapAnim.dict, mapAnim.name
-    -- Only stop our own clip: another script may have put the ped into something else meanwhile.
-    if ped and DoesEntityExist(ped) and IsEntityPlayingAnim(ped, dict, name, 3) then
-        StopAnimTask(ped, dict, name, 2.0)
+    self.mapAnimClip = nil
+    local alive = ped and DoesEntityExist(ped)
+    -- Only end our own task: another script may have put the ped into something else meanwhile.
+    if clip.scenario then
+        if alive and IsPedUsingScenario(ped, clip.scenario) then
+            ClearPedTasks(ped)
+        end
+    elseif clip.dict then
+        if alive and IsEntityPlayingAnim(ped, clip.dict, clip.name, 3) then
+            StopAnimTask(ped, clip.dict, clip.name, 2.0)
+        end
+        RemoveAnimDict(clip.dict)
     end
     local obj = self.mapProp
     self.mapProp = nil
     deleteMapProp(obj)
-    if type(dict) == 'string' then RemoveAnimDict(dict) end
 end
 
 --- @param coords vector3

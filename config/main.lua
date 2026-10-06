@@ -131,29 +131,35 @@ return {
 
         },
 
-        --- Animation the character plays while any pause screen is open (home, map, 3D map,
-        --- settings), with a map in hand. It stops and the map disappears as soon as the
-        --- menu closes. Other players see it too.
-        --- Skipped in a vehicle, while dead, ragdolled, falling, swimming, climbing or cuffed.
+        --- What the character does while any pause screen is open (home, map, 3D map, settings).
+        --- Ends the moment the menu closes. Other players see it too.
+        --- Skipped in a vehicle, while dead, ragdolled, falling, swimming, climbing, cuffed or
+        --- holding a weapon.
         mapAnim = {
 
             --- @type boolean
             enabled = true,
 
-            --- Animation dictionary and clip.
-            --- GTA's own "reading a map" pose (standing, map open in both hands) instead:
-            ---     dict = 'amb@world_human_tourist_map@male@base', name = 'base', flag = 49,
+            --- GTA scenario to play. WORLD_HUMAN_TOURIST_MAP: the character stands, unfolds a
+            --- map, reads it, traces routes and points with a hand, looks up and around, and
+            --- folds it away on close. The game picks the male / female version and handles
+            --- the map prop itself.
+            --- Set to false to use the custom animation below instead.
+            --- @type string | false
+            scenario = 'WORLD_HUMAN_TOURIST_MAP',
+
+            --- Custom animation, only used when `scenario = false`.
             --- @type string
-            dict = 'amb@world_human_bum_wash@male@low@idle_a',
+            dict = 'amb@world_human_tourist_map@male@base',
 
             --- @type string
-            name = 'idle_a',
+            name = 'base',
 
             --- TaskPlayAnim flag: 1 = loop (full body), 49 = loop (upper body only).
             --- @type integer
-            flag = 1,
+            flag = 49,
 
-            --- Prop held during the animation. Set to false for none.
+            --- Prop held during the custom animation. Set to false for none.
             --- `bone`: 28422 = right hand, 60309 = left hand.
             --- `offset` / `rotation` fine-tune where it sits in the hand.
             --- @type { model: string, bone: integer, offset: vector3, rotation: vector3 } | false

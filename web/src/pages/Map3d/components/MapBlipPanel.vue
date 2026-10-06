@@ -41,7 +41,10 @@
 					</div>
 
 					<div
-						class="flex min-h-0 w-full flex-1 flex-col items-end gap-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+						ref="listRef"
+						class="mt-1 flex min-h-0 w-full flex-1 flex-col items-end gap-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+						:style="listMask"
+						@scroll.passive="updateFade">
 						<p v-if="!hasRows" class="map-bar w-full rounded-sm px-4 py-3 text-sm text-white/55">
 							{{ _t("ui.map.empty", "Nothing matches") }}
 						</p>
@@ -57,6 +60,11 @@
 								<span class="truncate">{{ _t(group.label, group.label) }}</span>
 							</button>
 							<div v-if="!collapsed[group.id]" class="flex w-full flex-col items-end gap-0.5">
+								<p
+									v-if="group.id === 'server' && hasUnnamed"
+									class="map-bar w-full rounded-sm px-3 py-2 text-xs leading-snug text-white/60">
+									{{ _t("ui.map3d.namesHint", "Open the Map once to load the names.") }}
+								</p>
 								<div
 									v-for="stack in stacksIn(group.id)"
 									:key="stack.key"
@@ -786,6 +794,12 @@ const toggleHidden = (stack: Stack) => {
 		fetchNui("ThreeDMapHide", { id: point.id, row: true, hidden }, "ok");
 	}
 };
+
+const { listRef, listMask, updateFade } = useScrollFade();
+
+const hasUnnamed = computed(
+	() => !sheet.value.legendLearned && points.value.some((point) => point.group === "server" && !point.label),
+);
 
 onMounted(() => window.addEventListener("keydown", onEscape, true));
 onUnmounted(() => {

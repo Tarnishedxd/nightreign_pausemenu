@@ -77,6 +77,13 @@ export function blipManifestPlugin(root: string): Plugin {
 		load(id) {
 			if (id === RESOLVED_ID) return moduleSource(metas);
 		},
+		// The game side reads this too: blip sprite id -> icon name, to put the GTA map legend's
+		// names (which carry the icon name, not the id) on the blips it finds.
+		generateBundle() {
+			const names: Record<string, string> = {};
+			for (const meta of metas) if (meta.id !== null) names[String(meta.id)] = meta.name;
+			this.emitFile({ type: "asset", fileName: "blips.json", source: JSON.stringify(names) });
+		},
 		configureServer(server) {
 			refresh();
 			if (!fs.existsSync(blipsDir)) return;

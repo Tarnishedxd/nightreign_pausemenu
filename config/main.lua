@@ -86,9 +86,10 @@ return {
             --- @type boolean
             enabled = true,
 
-            --- Resource with the server export that returns a player's premium points.
-            --- @type string
-            resource = 'g-coinshop',
+            --- Resource with the server export that returns a player's premium points. A list
+            --- tries each name in order and uses the first one that is started and has the export.
+            --- @type string | string[]
+            resource = { 'g-coin-shop', 'g-coinshop' },
 
             --- Export name, called as exports[resource]:export(source).
             --- @type string

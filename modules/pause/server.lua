@@ -15,6 +15,14 @@ local playerCount = {
 local money = {}
 local premiumWarned = false
 
+--- @return string[]
+local function premiumResources()
+    local value = premiumCfg.resource
+    if type(value) == 'string' then return { value } end
+    if type(value) == 'table' then return value end
+    return {}
+end
+
 --- @param source number
 --- @return boolean ok
 --- @return any result
@@ -23,16 +31,24 @@ local function readPremium(source)
     if type(premiumCfg.get) == 'function' then
         return pcall(premiumCfg.get, source)
     end
-    local resource, export = premiumCfg.resource, premiumCfg.export
-    if type(resource) ~= 'string' or resource == '' or type(export) ~= 'string' or export == '' then
-        return true, nil
+    local export = premiumCfg.export
+    if type(export) ~= 'string' or export == '' then return true, nil end
+    local failure
+    local resources = premiumResources()
+    for i = 1, #resources do
+        local resource = resources[i]
+        -- Checked on every read: the coin shop may start after this resource, or restart.
+        if type(resource) == 'string' and resource ~= '' and GetResourceState(resource) == 'started' then
+            local ok, result, extra = pcall(function()
+                local api = exports[resource]
+                return api[export](api, source)
+            end)
+            if ok then return true, result, extra end
+            failure = result
+        end
     end
-    -- Checked on every read: the coin shop may start after this resource, or restart.
-    if GetResourceState(resource) ~= 'started' then return true, nil end
-    return pcall(function()
-        local api = exports[resource]
-        return api[export](api, source)
-    end)
+    if failure ~= nil then return false, failure end
+    return true, nil
 end
 
 --- Optional add-on: a missing resource or export, or an error in it, only hides the points.

@@ -45,8 +45,17 @@ function scanBlipsDir(dir: string): BlipMeta[] {
 		});
 }
 
+// The file name already holds the id and the name ("1-radar_level"), so ship only the file
+// names and rebuild the entries at startup: about a third of the size of the full JSON.
 function moduleSource(metas: BlipMeta[]): string {
-	return `export const blipMetas = ${JSON.stringify(metas)}`;
+	const files = metas.map((meta) => meta.file).join(",");
+	return `const files = ${JSON.stringify(files)};
+export const blipMetas = files ? files.split(",").map((file) => {
+	const match = /^(\\d+)-(radar_.+)$/i.exec(file);
+	return match
+		? { id: Number(match[1]), name: match[2].toLowerCase(), file }
+		: { id: null, name: file.toLowerCase(), file };
+}) : [];`;
 }
 
 export function blipManifestPlugin(root: string): Plugin {

@@ -2,7 +2,7 @@
 	<div class="flex h-full min-h-0 flex-col px-14 py-7 text-white bg-black/75" :style="panelStyle">
 		<header class="flex shrink-0 items-center justify-between gap-4 border-b border-white/10 pb-5">
 			<div class="flex min-w-0 items-center gap-3">
-				<BrandLogo class="h-8 w-auto shrink-0" />
+				<BrandLogo class="h-10 w-auto shrink-0" />
 				<h1 class="min-w-0 truncate text-2xl font-semibold tracking-tight">{{ _t("ui.pause.settings", "Settings") }}</h1>
 			</div>
 			<div v-if="settings.vram && settings.vramPercent >= 0" class="flex shrink-0 items-center gap-2">

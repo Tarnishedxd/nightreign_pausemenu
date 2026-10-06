@@ -1,6 +1,9 @@
 local cfg <const> = require 'config.main'
 local mapCfg <const> = cfg.threeDMap or {}
 local camCfg <const> = cfg.camera or {}
+local abs <const> = math.abs
+local sqrt <const> = math.sqrt
+local floor <const> = math.floor
 
 local NOTICES <const> = {
     invalid = { 'ui.map3d.invalid', 'That blip could not be saved.' },
@@ -522,10 +525,12 @@ function ThreeDMapClass:fillSlot(index, id, x, y, scale)
         slot = {}
         self.positions[index] = slot
     end
+    -- Rounded so each message stays short (it is sent every frame while the camera moves):
+    -- 0.0001 of the screen is a fifth of a pixel at 1920 wide.
     slot.id = id
-    slot.x = x
-    slot.y = y
-    slot.scale = scale
+    slot.x = floor(x * 10000 + 0.5) / 10000
+    slot.y = floor(y * 10000 + 0.5) / 10000
+    slot.scale = floor(scale * 100 + 0.5) / 100
 end
 
 function ThreeDMapClass:project()
@@ -541,36 +546,48 @@ function ThreeDMapClass:project()
     end
 
     local camPos = GetCamCoord(cam)
+    local camX, camY, camZ = camPos.x, camPos.y, camPos.z
     local draw = mapCfg.drawDistance or 2500.0
     local drawSq = draw * draw
     local count = 0
     local changed = false
-    local seen = {}
+    local prevById = self.prev
+    local hiddenRows = self.hiddenRows
+    local points = self.points
+    -- Runs every frame while the camera moves: reuse the per-marker tables and mark
+    -- the ones seen this pass with a counter instead of allocating new tables.
+    local pass = (self.projectPass or 0) + 1
+    self.projectPass = pass
 
-    for i = 1, #self.points do
-        local point = self.points[i]
-        if not self.hiddenRows[point.id] then
-            local dx = point.x - camPos.x
-            local dy = point.y - camPos.y
-            local dz = point.z - camPos.z
+    for i = 1, #points do
+        local point = points[i]
+        local id = point.id
+        if not hiddenRows[id] then
+            local dx = point.x - camX
+            local dy = point.y - camY
+            local dz = point.z - camZ
             local distSq = dx * dx + dy * dy + dz * dz
             if distSq <= drawSq then
                 local onScreen, screenX, screenY = World3dToScreen2d(point.x, point.y, point.z)
                 if onScreen then
                     count += 1
-                    local dist = math.sqrt(distSq)
-                    local scale = math.max(0.75, math.min(1.0, 1.0 - (dist / (draw * 4.0))))
-                    self:fillSlot(count, point.id, screenX, screenY, scale)
-                    seen[point.id] = true
+                    local scale = 1.0 - (sqrt(distSq) / (draw * 4.0))
+                    if scale < 0.75 then scale = 0.75 elseif scale > 1.0 then scale = 1.0 end
+                    self:fillSlot(count, id, screenX, screenY, scale)
 
-                    local prev = self.prev[point.id]
-                    if not prev
-                        or math.abs(prev.x - screenX) > 0.0005
-                        or math.abs(prev.y - screenY) > 0.0005
-                        or math.abs(prev.scale - scale) > 0.01
-                    then
+                    local prev = prevById[id]
+                    if not prev then
                         changed = true
-                        self.prev[point.id] = { x = screenX, y = screenY, scale = scale }
+                        prevById[id] = { x = screenX, y = screenY, scale = scale, pass = pass }
+                    else
+                        prev.pass = pass
+                        if abs(prev.x - screenX) > 0.0005
+                            or abs(prev.y - screenY) > 0.0005
+                            or abs(prev.scale - scale) > 0.01
+                        then
+                            changed = true
+                            prev.x, prev.y, prev.scale = screenX, screenY, scale
+                        end
                     end
                 end
             end
@@ -579,9 +596,9 @@ function ThreeDMapClass:project()
 
     if count ~= self.visible then changed = true end
 
-    for id in pairs(self.prev) do
-        if not seen[id] then
-            self.prev[id] = nil
+    for id, prev in pairs(prevById) do
+        if prev.pass ~= pass then
+            prevById[id] = nil
             changed = true
         end
     end

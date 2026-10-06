@@ -3,6 +3,7 @@ local portrait <const> = cfg.pause.portrait
 local idleMale <const> = 'anim@heists@heist_corona@team_idles@male_a'
 local idleFemale <const> = 'anim@heists@heist_corona@team_idles@female_a'
 local portraitModeKvp <const> = 'portraitMode'
+local waisHud <const> = 'wais-hudv6'
 
 --- @return boolean
 local function isPortraitEnabled()
@@ -111,6 +112,8 @@ function PauseClass:new()
     self.headerBusy = false
     self.headerAt = 0
     self.restoreRadar = false
+    self.hudHidden = false
+    self.waisHidden = false
     return self
 end
 
@@ -349,6 +352,7 @@ function PauseClass:refreshHeader()
         Client:update({
             cash = data.cash or 0,
             bank = data.bank or 0,
+            premium = tonumber(data.premium) or -1,
             players = data.players or 0,
             maxPlayers = data.maxPlayers or 48,
         })
@@ -358,6 +362,46 @@ end
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 -- OPEN / CLOSE
 -- ════════════════════════════════════════════════════════════════════════════════════════════
+
+local waisFailed = false
+
+--- @param hidden boolean
+--- @return boolean called false when wais-hudv6 is off in the config or not started
+local function setWaisHud(hidden)
+    if not cfg.pause.hideWaisHud then return false end
+    if GetResourceState(waisHud) ~= 'started' then return false end
+    local ok, err = pcall(function()
+        local hud = exports[waisHud]
+        if hidden then
+            hud:hideHud()
+            hud:showRadar(true) -- wais-hudv6: true hides the minimap
+        else
+            hud:showHud()
+            hud:showRadar(false) -- false shows the minimap again
+        end
+    end)
+    if not ok and not waisFailed then
+        waisFailed = true
+        LT.Debug.Error('%s export failed: %s', waisHud, tostring(err))
+    end
+    return true
+end
+
+--- Hides third-party HUDs while any pause screen (home, maps, settings, vanilla) is up.
+--- @param hidden boolean
+function PauseClass:setHudHidden(hidden)
+    if self.hudHidden == hidden then return end
+    self.hudHidden = hidden
+    if hidden then
+        -- Before a character is loaded (multicharacter, spawn select) the HUD is not ours to
+        -- touch: closing the menu there must not show it over those screens.
+        if not LT.Framework.IsPlayerLoaded() then return end
+        self.waisHidden = setWaisHud(true)
+    elseif self.waisHidden then
+        self.waisHidden = false
+        setWaisHud(false)
+    end
+end
 
 --- @param name 'onPauseOpened'|'onPauseClosed'
 function PauseClass:runHook(name)
@@ -417,6 +461,7 @@ function PauseClass:openHome()
     self.quitConfirm = false
     self:setPage('pause')
     self:showNui()
+    self:setHudHidden(true)
     self:startSuppressLoop()
     self:killNativePause()
     self:startPortrait()
@@ -455,7 +500,14 @@ function PauseClass:openVanilla()
     self.settingsOpening = false
     self.allowVanilla = true
     self:hideNui()
+    -- The vanilla pause is full screen too: keep the HUD hidden until it closes.
+    self:setHudHidden(true)
     self:runHook('onPauseClosed')
+    local function vanillaDone()
+        if not self.open then
+            self:setHudHidden(false)
+        end
+    end
     CreateThread(function()
         Wait(0)
         if Camera and Camera:isOpen() then
@@ -473,7 +525,10 @@ function PauseClass:openVanilla()
         while self.allowVanilla and (IsPauseMenuActive() or IsPauseMenuRestarting()) and GetGameTimer() < deadline do
             Wait(0)
         end
-        if not self.allowVanilla then return end
+        if not self.allowVanilla then
+            vanillaDone()
+            return
+        end
         Wait(0)
 
         local started = GetGameTimer()
@@ -504,6 +559,7 @@ function PauseClass:openVanilla()
             end
             Wait(100)
         end
+        vanillaDone()
     end)
 end
 
@@ -526,6 +582,7 @@ function PauseClass:close()
         self.quitConfirm = false
         self.suppressThread = false
         self:hideNui()
+        self:setHudHidden(false)
         self:runHook('onPauseClosed')
         return
     end
@@ -535,6 +592,7 @@ function PauseClass:close()
     self:stopPortrait(true)
     self:killNativePause()
     self:hideNui()
+    self:setHudHidden(false)
     self:runHook('onPauseClosed')
 end
 
@@ -558,6 +616,7 @@ function PauseClass:onMapClosed()
     self.quitConfirm = false
     self:setPage('pause')
     self:showNui()
+    self:setHudHidden(true)
     self:startSuppressLoop()
     self:killNativePause()
     self:startPortrait()
@@ -599,6 +658,7 @@ function PauseClass:openMap3d()
 end
 
 function PauseClass:openStats()
+    if not cfg.pause.showStats then return end
     if self.settingsOpening then return end
     if SettingsBridge and SettingsBridge.active then return end
     if nativeMapOpen() then return end
@@ -720,6 +780,10 @@ LT.NUI.Callback('PauseOpenSettings', function(_, cb)
 end)
 
 LT.NUI.Callback('PauseOpenStats', function(_, cb)
+    if not cfg.pause.showStats then
+        cb(false)
+        return
+    end
     local payload = { skills = {}, career = { session = 0, played = 0, deaths = 0, onFoot = 0, driven = 0 } }
     if Stats and Stats.snapshot then
         payload = Stats.snapshot()
@@ -774,5 +838,9 @@ LT.Hooks.Stop(function()
     if Pause.restoreRadar then
         Pause.restoreRadar = false
         DisplayRadar(true)
+    end
+    -- Give the HUD back if the menu was up when the resource stopped.
+    if Pause.hudHidden then
+        Pause:setHudHidden(false)
     end
 end)

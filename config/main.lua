@@ -59,8 +59,40 @@ return {
         serverName = 'Nightreign Roleplay',
 
         --- Show logo + server name on pause / settings / stats / 3D map.
+        --- The logo is web/build/branding/logo.webp.
         --- @type boolean
-        showBranding = false,
+        showBranding = true,
+
+        --- Show the Stats entry (skills, play time, distances) in the pause menu.
+        --- @type boolean
+        showStats = false,
+
+        --- Show the online player count (e.g. 12 / 48) under cash and bank.
+        --- @type boolean
+        showPlayerCount = false,
+
+        --- Hide the wais-hudv6 HUD and minimap while the pause menu is open
+        --- (map, 3D map and settings included) and show them again when it closes.
+        --- Does nothing when wais-hudv6 is not started.
+        --- @type boolean
+        hideWaisHud = true,
+
+        --- Premium points shown next to cash and bank in the pause header.
+        premium = {
+
+            --- @type boolean
+            enabled = true,
+
+            --- Server side. Return the player's premium points as a number,
+            --- or nil to hide them. Called at most once every 35 seconds per player.
+            --- Default: g-coinshop's GetPremiumPointsBySource export.
+            --- @param source number
+            --- @return number|nil
+            get = function(source)
+                return exports['g-coinshop']:GetPremiumPointsBySource(source)
+            end,
+
+        },
 
         --- Front torso shot while the pause screen is open.
         --- @type table

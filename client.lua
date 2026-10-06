@@ -23,12 +23,15 @@ function ClientClass:new()
         serverName = cfg.pause.serverName,
         cash = 0,
         bank = 0,
+        premium = -1,
         players = 0,
         maxPlayers = GetConvarInt('sv_maxclients', 48),
         currency = cfg.currency,
         currencyFormat = cfg.currencyFormat,
         enable3DMap = cfg.threeDMap and cfg.threeDMap.enabled == true,
         showBranding = cfg.pause.showBranding ~= false,
+        showStats = cfg.pause.showStats == true,
+        showPlayerCount = cfg.pause.showPlayerCount == true,
     })
 
     -- Initialize the client.

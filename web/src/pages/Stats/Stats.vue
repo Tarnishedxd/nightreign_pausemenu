@@ -1,7 +1,7 @@
 <template>
 	<div class="flex h-full min-h-0 flex-col bg-black/75 px-14 py-7 text-white" :style="panelStyle">
 		<header class="flex shrink-0 items-center gap-3 border-b border-white/10 pb-5">
-			<BrandLogo class="h-8 w-auto shrink-0" />
+			<BrandLogo class="h-10 w-auto shrink-0" />
 			<h1 class="min-w-0 truncate text-2xl font-semibold tracking-tight">{{ _t("ui.stats.title", "Stats") }}</h1>
 		</header>
 

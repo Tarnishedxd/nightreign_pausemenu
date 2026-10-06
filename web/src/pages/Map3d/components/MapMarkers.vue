@@ -11,7 +11,7 @@
 			@click.stop="pick(point.id)"
 			@dblclick.stop="setWaypoint(point.id)">
 			<span class="chip grid h-8 w-8 place-items-center rounded-sm bg-black/75 ring-1 ring-inset ring-white/15">
-				<BlipIcon :sprite="point.sprite" :colour="blipColourHex(point.blipColour ?? 3)" :size="iS(18)" plain />
+				<BlipIcon :sprite="point.sprite" :colour="pointColour(point)" :size="iS(18)" plain />
 			</span>
 			<span class="stem" />
 			<span class="dot" />

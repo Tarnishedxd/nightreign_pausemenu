@@ -444,6 +444,8 @@ function NativeMapClass:applyDump(raw)
     end
     self.rows = rows
     self.rowsById = rowsById
+    -- the 3D map names the server's blips from this legend
+    if BlipNames then BlipNames.learn(rows) end
 end
 
 function NativeMapClass:publish()

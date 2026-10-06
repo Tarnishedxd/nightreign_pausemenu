@@ -70,6 +70,8 @@ declare global {
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
+  const pointColour: typeof import('./src/utils/blips').pointColour
+  const pointLabel: typeof import('./src/utils/blips').pointLabel
   const provide: typeof import('vue').provide
   const reactive: typeof import('vue').reactive
   const readableInk: typeof import('./src/utils/color').readableInk
@@ -85,6 +87,7 @@ declare global {
   const shallowReadonly: typeof import('vue').shallowReadonly
   const shallowRef: typeof import('vue').shallowRef
   const sharedLabel: typeof import('./src/composables/useExperimental').sharedLabel
+  const spriteTitle: typeof import('./src/utils/blips').spriteTitle
   const storeToRefs: typeof import('pinia').storeToRefs
   const toRaw: typeof import('vue').toRaw
   const toRef: typeof import('vue').toRef
@@ -210,6 +213,8 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
+    readonly pointColour: UnwrapRef<typeof import('./src/utils/blips')['pointColour']>
+    readonly pointLabel: UnwrapRef<typeof import('./src/utils/blips')['pointLabel']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly reactive: UnwrapRef<typeof import('vue')['reactive']>
     readonly readableInk: UnwrapRef<typeof import('./src/utils/color')['readableInk']>
@@ -224,6 +229,7 @@ declare module 'vue' {
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
+    readonly spriteTitle: UnwrapRef<typeof import('./src/utils/blips')['spriteTitle']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly toRaw: UnwrapRef<typeof import('vue')['toRaw']>
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>

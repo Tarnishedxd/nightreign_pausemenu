@@ -272,91 +272,24 @@ return {
         --- @type string
         adminAce = 'nightreign_pausemenu.globalblips',
 
-        --- Static categories. Not written to the database and cannot be deleted.
+        --- Show the blips the server's scripts put on the map (shops, jobs, garages...) with the
+        --- same icons, colours and names as the GTA map. Names are read from the GTA map legend:
+        --- until a player has opened the map page once, a blip shows its icon name instead.
+        --- @type boolean
+        serverBlips = true,
+
+        --- Extra static categories. Not written to the database and cannot be deleted.
         --- Category: `id`, `label` (locale key or plain string).
         --- Each entry in category `blips` is one placed blip with a single `coords` vector3.
         --- Same label + sprite inside a category are merged in the legend as a cycle.
         --- `sprite` = FiveM blip sprite id. `color` = FiveM blip colour 0-85.
         --- Optional 2D: `showOn2d`, `scale`, `shortRange`.
+        --- Example:
+        --- { id = 'events', label = 'Events', blips = {
+        ---     { label = 'Car meet', sprite = 225, color = 5, coords = vec3(-210.0, -1320.0, 30.9) },
+        --- } },
         --- @type { id: string, label: string, blips: { label: string, sprite: number, coords: vector3, color?: number, showOn2d?: boolean, scale?: number, shortRange?: boolean }[] }[]
-        categories = {
-            {
-                id = 'services',
-                label = 'ui.map3d.services.label',
-                blips = {
-                    --[[ Shops ]]
-                    { label = 'ui.map3d.services.shop',     sprite = 59,  color = 69, coords = vec3(25.7, -1347.3, 29.49) },
-                    { label = 'ui.map3d.services.shop',     sprite = 59,  color = 69, coords = vec3(-3038.71, 585.9, 7.9) },
-                    { label = 'ui.map3d.services.shop',     sprite = 59,  color = 69, coords = vec3(-3241.47, 1001.14, 12.83) },
-                    { label = 'ui.map3d.services.shop',     sprite = 59,  color = 69, coords = vec3(1728.66, 6414.16, 35.03) },
-                    { label = 'ui.map3d.services.shop',     sprite = 59,  color = 69, coords = vec3(1697.99, 4924.4, 42.06) },
-                    { label = 'ui.map3d.services.shop',     sprite = 59,  color = 69, coords = vec3(1961.48, 3739.96, 32.34) },
-                    { label = 'ui.map3d.services.shop',     sprite = 59,  color = 69, coords = vec3(547.79, 2671.79, 42.15) },
-                    { label = 'ui.map3d.services.shop',     sprite = 59,  color = 69, coords = vec3(2679.25, 3280.12, 55.24) },
-                    { label = 'ui.map3d.services.shop',     sprite = 59,  color = 69, coords = vec3(2557.94, 382.05, 108.62) },
-                    { label = 'ui.map3d.services.shop',     sprite = 59,  color = 69, coords = vec3(373.55, 325.56, 103.56) },
-                    --[[ Rob's Liquor Store ]]
-                    { label = 'ui.map3d.services.rob',      sprite = 93,  color = 69, coords = vec3(1135.808, -982.281, 46.415) },
-                    { label = 'ui.map3d.services.rob',      sprite = 93,  color = 69, coords = vec3(-1222.915, -906.983, 12.326) },
-                    { label = 'ui.map3d.services.rob',      sprite = 93,  color = 69, coords = vec3(-1487.553, -379.107, 40.163) },
-                    { label = 'ui.map3d.services.rob',      sprite = 93,  color = 69, coords = vec3(-2968.243, 390.910, 15.043) },
-                    { label = 'ui.map3d.services.rob',      sprite = 93,  color = 69, coords = vec3(1166.024, 2708.930, 38.157) },
-                    { label = 'ui.map3d.services.rob',      sprite = 93,  color = 69, coords = vec3(1392.562, 3604.684, 34.980) },
-                    { label = 'ui.map3d.services.rob',      sprite = 93,  color = 69, coords = vec3(-1393.409, -606.624, 30.319) },
-                    --[[ Gas Stations ]]
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(174.5, -1562.5, 29.3) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(265.6, -1261.3, 29.3) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(-526.0, -1211.0, 18.2) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(-70.2, -1761.8, 29.5) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(-724.6, -935.2, 19.2) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(-1437.6, -276.7, 46.2) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(-2096.2, -320.3, 13.2) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(-1799.8, 803.7, 138.7) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(620.8, 269.1, 103.1) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(1181.4, -330.8, 69.3) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(1208.9, -1402.6, 35.2) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(819.7, -1028.8, 26.4) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(-319.3, -1471.7, 30.5) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(2581.3, 362.0, 108.5) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(2005.1, 3773.9, 32.4) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(2679.9, 3264.0, 55.2) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(1039.9, 2671.1, 39.5) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(1687.2, 4929.4, 42.1) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(179.9, 6602.8, 31.9) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(-94.5, 6419.6, 31.5) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(1701.3, 6416.0, 32.8) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(-2554.9, 2334.4, 33.1) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(2539.7, 2594.2, 37.9) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(1207.3, 2660.2, 37.9) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(263.9, 2606.5, 45.0) },
-                    { label = 'ui.map3d.services.gas',      sprite = 361, color = 6,  coords = vec3(49.4, 2778.8, 58.0) },
-                    --[[ Clothing Stores ]]
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(1693.32, 4823.48, 41.06) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(-712.215881, -155.352982, 37.4151268) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(-1192.94495, -772.688965, 17.3255997) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(425.236, -806.008, 28.491) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(-162.658, -303.397, 38.733) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(75.950, -1392.891, 28.376) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(-822.194, -1074.134, 10.328) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(-1450.711, -236.83, 48.809) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(4.254, 6512.813, 30.877) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(615.180, 2762.933, 41.088) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(1196.785, 2709.558, 37.222) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(-3171.453, 1043.857, 19.863) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(-1100.959, 2710.211, 18.107) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(-1207.65, -1456.88, 4.378) },
-                    { label = 'ui.map3d.services.clothing', sprite = 73,  color = 17, coords = vec3(121.76, -224.6, 53.56) },
-                    --[[ Barber ]]
-                    { label = 'ui.map3d.services.barber',   sprite = 71,  color = 0,  coords = vec3(-814.3, -183.8, 36.6) },
-                    { label = 'ui.map3d.services.barber',   sprite = 71,  color = 0,  coords = vec3(136.8, -1708.4, 28.3) },
-                    { label = 'ui.map3d.services.barber',   sprite = 71,  color = 0,  coords = vec3(-1282.6, -1116.8, 6.0) },
-                    { label = 'ui.map3d.services.barber',   sprite = 71,  color = 0,  coords = vec3(1931.5, 3729.7, 31.8) },
-                    { label = 'ui.map3d.services.barber',   sprite = 71,  color = 0,  coords = vec3(1212.8, -472.9, 65.2) },
-                    { label = 'ui.map3d.services.barber',   sprite = 71,  color = 0,  coords = vec3(-32.9, -152.3, 56.1) },
-                    { label = 'ui.map3d.services.barber',   sprite = 71,  color = 0,  coords = vec3(-278.1, 6228.5, 30.7) },
-                },
-            },
-        },
+        categories = {},
     },
 
     -- ════════════════════════════════════════════════════════════════════════════════════════════

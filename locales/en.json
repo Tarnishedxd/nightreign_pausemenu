@@ -89,6 +89,7 @@
 			"playerPlaceholder": "Server ID (e.g. 1)",
 			"pointPlaceholder": "Legion Square",
 			"search": "Search blips",
+			"server": "Locations",
 			"sent": "Request sent.",
 			"services": {
 				"label": "Services",

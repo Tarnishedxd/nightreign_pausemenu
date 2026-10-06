@@ -181,6 +181,8 @@ export type MarkerPoint = {
 	showOn2d?: boolean;
 	spriteId?: number;
 	blipColour?: number;
+	/** Exact colour the game shows (server blips), over blipColour. */
+	colourHex?: string;
 	scale?: number;
 	shortRange?: boolean;
 	shares: MarkerShare[];

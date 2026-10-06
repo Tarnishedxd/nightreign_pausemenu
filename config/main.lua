@@ -71,11 +71,34 @@ return {
         --- @type boolean
         showPlayerCount = false,
 
-        --- Hide the wais-hudv6 HUD and minimap while the pause menu is open
-        --- (map, 3D map and settings included) and show them again when it closes.
-        --- Does nothing when wais-hudv6 is not started.
+        --- Hide the HUD and minimap while the pause menu is open (map, 3D map and settings
+        --- included) and show them again when it closes. Does nothing when the HUD resource is
+        --- not started.
         --- @type boolean
         hideWaisHud = true,
+
+        --- How the HUD is hidden and shown again. `hud` is exports[resource].
+        --- If something comes back the wrong way round, swap the calls here.
+        waisHud = {
+
+            --- @type string
+            resource = 'wais-hudv6',
+
+            --- Pause menu opened.
+            --- @param hud table
+            hide = function(hud)
+                hud:showHud()       -- wais-hudv6: showHud() hides the HUD (the names are swapped)
+                hud:showRadar(true) -- true hides the minimap
+            end,
+
+            --- Pause menu closed.
+            --- @param hud table
+            show = function(hud)
+                hud:hideHud()        -- wais-hudv6: hideHud() shows the HUD again
+                hud:showRadar(false) -- false shows the minimap
+            end,
+
+        },
 
         --- Premium points shown next to cash and bank in the pause header (read on the server).
         --- Optional: while the resource below is not started (whatever the start order, or during

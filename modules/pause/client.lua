@@ -640,20 +640,19 @@ local waisFailed = false
 --- @return boolean called false when wais-hudv6 is off in the config or not started
 local function setWaisHud(hidden)
     if not cfg.pause.hideWaisHud then return false end
-    if GetResourceState(waisHud) ~= 'started' then return false end
-    local ok, err = pcall(function()
-        local hud = exports[waisHud]
-        if hidden then
-            hud:hideHud()
-            hud:showRadar(true) -- wais-hudv6: true hides the minimap
-        else
-            hud:showHud()
-            hud:showRadar(false) -- false shows the minimap again
-        end
-    end)
+    local hudCfg = type(cfg.pause.waisHud) == 'table' and cfg.pause.waisHud or {}
+    local resource = type(hudCfg.resource) == 'string' and hudCfg.resource or waisHud
+    if GetResourceState(resource) ~= 'started' then return false end
+    local fn = hidden and hudCfg.hide or hudCfg.show
+    if type(fn) ~= 'function' then
+        -- a config without the waisHud block: the same calls as the default config
+        fn = hidden and function(hud) hud:showHud(); hud:showRadar(true) end
+            or function(hud) hud:hideHud(); hud:showRadar(false) end
+    end
+    local ok, err = pcall(fn, exports[resource])
     if not ok and not waisFailed then
         waisFailed = true
-        LT.Debug.Error('%s export failed: %s', waisHud, tostring(err))
+        LT.Debug.Error('config.pause.waisHud.%s failed: %s', hidden and 'hide' or 'show', tostring(err))
     end
     return true
 end

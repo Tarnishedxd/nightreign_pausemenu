@@ -16,26 +16,41 @@ local money = {}
 local premiumWarned = false
 
 --- @param source number
+--- @return boolean ok
+--- @return any result
+--- @return any extra
+local function readPremium(source)
+    if type(premiumCfg.get) == 'function' then
+        return pcall(premiumCfg.get, source)
+    end
+    local resource, export = premiumCfg.resource, premiumCfg.export
+    if type(resource) ~= 'string' or resource == '' or type(export) ~= 'string' or export == '' then
+        return true, nil
+    end
+    -- Checked on every read: the coin shop may start after this resource, or restart.
+    if GetResourceState(resource) ~= 'started' then return true, nil end
+    return pcall(function()
+        local api = exports[resource]
+        return api[export](api, source)
+    end)
+end
+
+--- Optional add-on: a missing resource or export, or an error in it, only hides the points.
+--- @param source number
 --- @return number|nil
 local function premiumPoints(source)
-    if premiumCfg.enabled ~= true or type(premiumCfg.get) ~= 'function' then return nil end
-    local ok, result, extra = pcall(premiumCfg.get, source)
+    if premiumCfg.enabled ~= true then return nil end
+    local ok, result, extra = readPremium(source)
     -- Some exports answer `ok, amount`: take the number that follows a boolean.
     if ok and type(result) == 'boolean' then result = extra end
     local value = ok and tonumber(result) or nil
     if value and (value ~= value or math.abs(value) == math.huge) then value = nil end
-    if not value then
-        if not premiumWarned then
-            premiumWarned = true
-            if ok then
-                LT.Debug.Error('config.pause.premium.get returned no number for player %s, premium points are hidden for them. If this happens for everyone, put your coin shop export in it or set premium.enabled = false.', tostring(source))
-            else
-                LT.Debug.Error('config.pause.premium.get failed: %s', tostring(result))
-            end
-        end
-        return nil
+    if value then return math.floor(value) end
+    if not ok and not premiumWarned then
+        premiumWarned = true
+        LT.Debug.Warn('premium points are hidden, reading them failed: %s', tostring(result))
     end
-    return math.floor(value)
+    return nil
 end
 
 local function countPlayers()

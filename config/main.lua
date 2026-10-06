@@ -77,20 +77,26 @@ return {
         --- @type boolean
         hideWaisHud = true,
 
-        --- Premium points shown next to cash and bank in the pause header.
+        --- Premium points shown next to cash and bank in the pause header (read on the server).
+        --- Optional: while the resource below is not started (whatever the start order, or during
+        --- a restart) or does not have the export, the points are simply not shown and the menu
+        --- works as usual. Read at most once every 5 seconds per player.
         premium = {
 
             --- @type boolean
             enabled = true,
 
-            --- Server side. Return the player's premium points as a number,
-            --- or nil to hide them. Called at most once every 35 seconds per player.
-            --- Default: g-coinshop's GetPremiumPointsBySource export.
-            --- @param source number
-            --- @return number|nil
-            get = function(source)
-                return exports['g-coinshop']:GetPremiumPointsBySource(source)
-            end,
+            --- Resource with the server export that returns a player's premium points.
+            --- @type string
+            resource = 'g-coinshop',
+
+            --- Export name, called as exports[resource]:export(source).
+            --- @type string
+            export = 'GetPremiumPointsBySource',
+
+            --- Instead of resource / export, a function can read the points (return a number, or
+            --- nil to hide them). Errors in it are caught the same way:
+            --- get = function(source) return exports['my-shop']:GetPoints(source) end,
 
         },
 

@@ -126,11 +126,33 @@ function PauseClass:new()
     return self
 end
 
+--- A task given a moment ago starts a frame or two later, so a menu closed right after opening
+--- (ESC spammed) finds nothing to stop yet. Watch for a moment and end it once it shows up, or
+--- a looping full-body clip would hold the player in place.
+--- @param started fun(): boolean
+--- @param stop fun()
+--- @param superseded fun(): boolean true once a new run owns the ped again
+local function endWhenStarted(started, stop, superseded)
+    CreateThread(function()
+        local deadline = GetGameTimer() + 2000
+        while GetGameTimer() < deadline and not superseded() do
+            if started() then
+                stop()
+                return
+            end
+            Wait(0)
+        end
+    end)
+end
+
 function PauseClass:playIdle(ped)
     -- The pause animation is the pose while it runs; the portrait idle would replace it.
     if self.pauseAnimOn then return end
+    local gen <const> = self.portraitGen
     local dict = IsPedMale(ped) and idleMale or idleFemale
-    lib.requestAnimDict(dict)
+    if not pcall(lib.requestAnimDict, dict) then return end
+    -- closed (or the pause animation started) while the clip loaded
+    if self.portraitGen ~= gen or self.pauseAnimOn then return end
     TaskPlayAnim(ped, dict, 'idle', 2.0, 2.0, -1, 1, 0.0, false, false, false)
     self.idleDict = dict
 end
@@ -141,7 +163,13 @@ function PauseClass:stopIdle()
     self.idleDict = nil
     local ped <const> = cache.ped
     if ped and DoesEntityExist(ped) then
-        StopAnimTask(ped, dict, 'idle', 1.0)
+        local function playing() return IsEntityPlayingAnim(ped, dict, 'idle', 3) end
+        local function stop() StopAnimTask(ped, dict, 'idle', 1.0) end
+        if playing() then
+            stop()
+        else
+            endWhenStarted(playing, stop, function() return self.idleDict ~= nil end)
+        end
     end
     RemoveAnimDict(dict)
 end
@@ -165,14 +193,17 @@ end
 
 --- States where taking over the ped with an animation would break what it is doing.
 --- @param ped number
+--- @param ours? fun(): boolean true when the ped is still in our own pause animation (reopened
+--- while it was ending): that is not another script's
 --- @return boolean
-local function canPlayPauseAnim(ped)
+local function canPlayPauseAnim(ped, ours)
     if not ped or ped == 0 or not DoesEntityExist(ped) then return false end
     if IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedFalling(ped) or IsPedSwimming(ped) then return false end
     if IsPedInAnyVehicle(ped, true) or IsPedGettingIntoAVehicle(ped) or IsPedClimbing(ped) then return false end
-    if IsPedCuffed(ped) or IsPedUsingAnyScenario(ped) or IsPedInParachuteFreeFall(ped) then return false end
-    -- an emote or another script's animation (sitting, leaning, hands up): do not stand them up
-    if animTaskActive(ped) then return false end
+    if IsPedCuffed(ped) or IsPedInParachuteFreeFall(ped) then return false end
+    -- a scenario, an emote or another script's animation (sitting, leaning, hands up): do not
+    -- stand them up
+    if (IsPedUsingAnyScenario(ped) or animTaskActive(ped)) and not (ours and ours()) then return false end
     -- carried, escorted, taken hostage: another player's script owns the ped
     if IsEntityAttached(ped) then return false end
     if GetPedParachuteState(ped) > 0 then return false end
@@ -258,7 +289,18 @@ function PauseClass:startPauseAnim()
     -- Character select / spawn screens animate the ped themselves.
     if not LT.Framework.IsPlayerLoaded() then return end
     local ped <const> = cache.ped
-    if not canPlayPauseAnim(ped) then return end
+    local dict, name = pauseAnim.dict, pauseAnim.name
+    local female = pauseAnim.female
+    if not scenario and type(female) == 'table' and type(female.dict) == 'string' and type(female.name) == 'string'
+        and not IsPedMale(ped)
+    then
+        dict, name = female.dict, female.name
+    end
+    local function ours()
+        if scenario then return IsPedUsingScenario(ped, scenario) end
+        return IsEntityPlayingAnim(ped, dict, name, 3)
+    end
+    if not canPlayPauseAnim(ped, ours) then return end
     self.pauseAnimOn = true
     self.pauseAnimGen = self.pauseAnimGen + 1
     self.pauseAnimPed = ped
@@ -276,13 +318,6 @@ function PauseClass:startPauseAnim()
         return
     end
 
-    local dict, name = pauseAnim.dict, pauseAnim.name
-    local female = pauseAnim.female
-    if type(female) == 'table' and type(female.dict) == 'string' and type(female.name) == 'string'
-        and not IsPedMale(ped)
-    then
-        dict, name = female.dict, female.name
-    end
     self.pauseAnimClip = { dict = dict, name = name }
     CreateThread(function()
         local ok = pcall(lib.requestAnimDict, dict)
@@ -317,14 +352,20 @@ function PauseClass:stopPauseAnim()
     self.pauseAnimPed = nil
     self.pauseAnimClip = nil
     local alive = ped and DoesEntityExist(ped)
+    local gen <const> = self.pauseAnimGen
+    local function superseded() return self.pauseAnimGen ~= gen end
     -- Only end our own task: another script may have put the ped into something else meanwhile.
     if clip.scenario then
-        if alive and IsPedUsingScenario(ped, clip.scenario) then
-            ClearPedTasks(ped)
+        if alive then
+            local function using() return IsPedUsingScenario(ped, clip.scenario) end
+            local function stop() ClearPedTasks(ped) end
+            if using() then stop() else endWhenStarted(using, stop, superseded) end
         end
     elseif clip.dict then
-        if alive and IsEntityPlayingAnim(ped, clip.dict, clip.name, 3) then
-            StopAnimTask(ped, clip.dict, clip.name, 2.0)
+        if alive then
+            local function playing() return IsEntityPlayingAnim(ped, clip.dict, clip.name, 3) end
+            local function stop() StopAnimTask(ped, clip.dict, clip.name, 2.0) end
+            if playing() then stop() else endWhenStarted(playing, stop, superseded) end
         end
         RemoveAnimDict(clip.dict)
     end

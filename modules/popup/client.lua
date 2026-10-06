@@ -355,14 +355,18 @@ function PopupBridgeClass:resolve(control)
     end
 
     self.dismissing = true
-    self:closeAlert()
-    self:pulseFrontend(control, 30)
-    self:clear()
-    if SettingsBridge.active then
-        SettingsBridge:onPopupResolved(confirmed, mode)
-    end
-    self:waitPopupClear()
+    -- `dismissing` blocks every later popup: it must come back down even if a step fails
+    local ok, err = pcall(function()
+        self:closeAlert()
+        self:pulseFrontend(control, 30)
+        self:clear()
+        if SettingsBridge.active then
+            SettingsBridge:onPopupResolved(confirmed, mode)
+        end
+        self:waitPopupClear()
+    end)
     self.dismissing = false
+    if not ok then LT.Debug.Error('popup answer failed: %s', tostring(err)) end
     return true
 end
 
@@ -373,8 +377,15 @@ function PopupBridgeClass:start()
         while self.pollThread do
             if SettingsBridge and SettingsBridge.active then
                 if not self.suppressPaused and not self.dismissing then
-                    self:tryOpenFromVersion()
-                    self:hideNativeUi()
+                    -- one bad read must not end popup watching for the rest of the session
+                    local ok, err = pcall(function()
+                        self:tryOpenFromVersion()
+                        self:hideNativeUi()
+                    end)
+                    if not ok then
+                        LT.Debug.Error('popup watch failed: %s', tostring(err))
+                        Wait(500)
+                    end
                 end
                 Wait(0)
             else
@@ -395,7 +406,10 @@ _G.PopupBridge = PopupBridgeClass:new()
 PopupBridge:start()
 
 LT.NUI.Callback('GtaAlertPress', function(data, cb)
-    cb({ ok = PopupBridge:resolve(data and data.control) })
+    -- the popup buttons stay locked until this answers
+    local ok, resolved = pcall(PopupBridge.resolve, PopupBridge, type(data) == 'table' and data.control or nil)
+    if not ok then LT.Debug.Error('popup answer failed: %s', tostring(resolved)) end
+    cb({ ok = ok and resolved == true })
 end)
 
 LT.Hooks.Stop(function()

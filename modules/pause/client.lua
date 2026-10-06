@@ -150,6 +150,19 @@ end
 -- PAUSE ANIMATION (what the character does while any pause screen is open)
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
+--- 0 = waiting to start, 1 = performing; 7 = not found.
+local SCRIPT_ANIM_TASKS <const> = { `SCRIPT_TASK_PLAY_ANIM`, `SCRIPT_TASK_SYNCHRONIZED_SCENE` }
+
+--- @param ped number
+--- @return boolean
+local function animTaskActive(ped)
+    for i = 1, #SCRIPT_ANIM_TASKS do
+        local status = GetScriptTaskStatus(ped, SCRIPT_ANIM_TASKS[i])
+        if status == 0 or status == 1 then return true end
+    end
+    return false
+end
+
 --- States where taking over the ped with an animation would break what it is doing.
 --- @param ped number
 --- @return boolean
@@ -158,6 +171,8 @@ local function canPlayPauseAnim(ped)
     if IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedFalling(ped) or IsPedSwimming(ped) then return false end
     if IsPedInAnyVehicle(ped, true) or IsPedGettingIntoAVehicle(ped) or IsPedClimbing(ped) then return false end
     if IsPedCuffed(ped) or IsPedUsingAnyScenario(ped) or IsPedInParachuteFreeFall(ped) then return false end
+    -- an emote or another script's animation (sitting, leaning, hands up): do not stand them up
+    if animTaskActive(ped) then return false end
     -- carried, escorted, taken hostage: another player's script owns the ped
     if IsEntityAttached(ped) then return false end
     if GetPedParachuteState(ped) > 0 then return false end
@@ -344,6 +359,10 @@ function PauseClass:startPortrait()
     if not isPortraitEnabled() then return end
     local ped <const> = cache.ped
     if not ped or ped == 0 or IsPedInAnyVehicle(ped, false) then return end
+    -- another script's camera (character select, death cam, CCTV...): taking over would leave
+    -- the game camera behind it on close
+    local rendering <const> = GetRenderingCam()
+    if rendering ~= -1 and rendering ~= self.cam and rendering ~= self.retiredCam and DoesCamExist(rendering) then return end
 
     self.portraitGen = self.portraitGen + 1
     self.portraitSide = samplePortraitSide(ped)

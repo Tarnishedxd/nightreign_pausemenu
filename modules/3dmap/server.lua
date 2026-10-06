@@ -122,7 +122,7 @@ local MARKERS_SCHEMA <const> = [[
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
         INDEX idx_owner (owner)
-    )
+    ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ]]
 
 local GLOBALS_SCHEMA <const> = [[
@@ -142,7 +142,7 @@ local GLOBALS_SCHEMA <const> = [[
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
         INDEX idx_category (category)
-    )
+    ) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ]]
 
 --- @return Database
@@ -382,7 +382,10 @@ local function cleanLabel(value)
     if type(value) ~= 'string' then return nil end
     -- Strip GTA text formatting (~r~, <font>) and control characters; labels end up in blip names.
     local label = value:gsub('~[^~]*~', ''):gsub('<[^>]*>', ''):gsub('[~<>]', ''):gsub('%c', ' '):match('^%s*(.-)%s*$')
-    if not label or label == '' or #label > 48 then return nil end
+    if not label or label == '' then return nil end
+    -- characters, not bytes: the UI allows 48 and accented letters take two bytes
+    local length = utf8.len(label)
+    if not length or length > 48 then return nil end
     return label
 end
 
@@ -412,7 +415,17 @@ local function cleanCoords(value)
     local y = tonumber(value.y) or tonumber(value[2])
     local z = tonumber(value.z) or tonumber(value[3])
     if not x or not y or not z then return nil end
+    if math.abs(x) > 20000 or math.abs(y) > 20000 or math.abs(z) > 5000 or x ~= x or y ~= y or z ~= z then return nil end
     return { x = x, y = y, z = z }
+end
+
+--- Database row id or server id: a positive whole number.
+--- @param value any
+--- @return integer|nil
+local function cleanId(value)
+    local id = tonumber(value)
+    if not id or id < 1 or id > 2147483647 or id ~= math.floor(id) then return nil end
+    return math.floor(id)
 end
 
 --- @param value any
@@ -553,6 +566,32 @@ AddEventHandler('playerDropped', function()
     readSlots['globals:' .. src] = nil
 end)
 
+-- Requests that check the database and then write (marker limit, cooldowns, the JSON share
+-- lists) are serialized: requests sent together would otherwise all pass the same check, or
+-- overwrite each other's list edits.
+local locks = {}
+
+--- @param key string
+--- @param fn fun(): any
+--- @return boolean ran false when the lock stayed taken for 5 s or fn raised
+--- @return any result
+local function locked(key, fn)
+    local waited = 0
+    while locks[key] do
+        if waited >= 5000 then return false end
+        Wait(50)
+        waited += 50
+    end
+    locks[key] = true
+    local ok, result = pcall(fn)
+    locks[key] = nil
+    if not ok then
+        LT.Debug.Error('Marker update failed: %s', tostring(result))
+        return false
+    end
+    return true, result
+end
+
 lib.callback.register(_e('3dmap:fetch'), function(src)
     local identifier = citizenId(src)
     if not db or not identifier or not waitReadSlot(src, 'fetch') or not db:wait() then
@@ -584,17 +623,15 @@ lib.callback.register(_e('3dmap:create'), function(src, data)
         shortRange = data.shortRange ~= false
     end
 
-    if LT.Cooldown.Check(identifier, '3dmap:create') then return fail('cooldown') end
-    local saved, result = pcall(function()
+    local lock = 'create:' .. identifier
+    if locks[lock] or LT.Cooldown.Check(identifier, '3dmap:create') then return fail('cooldown') end
+    local saved, result = locked(lock, function()
         if db:count(identifier) >= (mapCfg.maxMarkers or 16) then return fail('max') end
         db:create(identifier, label, sprite, spriteId, colour, coords, showOn2d, blipColour, scale, shortRange)
         LT.Cooldown.Start(identifier, '3dmap:create', mapCfg.createCooldown or 60000)
         return sheet(identifier)
     end)
-    if not saved then
-        LT.Debug.Error('Marker save failed: %s', result)
-        return fail('invalid')
-    end
+    if not saved then return fail('invalid') end
     return result
 end)
 
@@ -659,7 +696,7 @@ end)
 
 lib.callback.register(_e('3dmap:deleteGlobal'), function(src, data)
     if not isAdmin(src) or type(data) ~= 'table' or not db:wait() then return fail('noPermission') end
-    local id = tonumber(data.id)
+    local id = cleanId(data.id)
     if not id or not db:deleteGlobal(id) then return fail('invalid') end
 
     local globals = db:fetchGlobals()
@@ -669,10 +706,10 @@ end)
 
 lib.callback.register(_e('3dmap:delete'), function(src, data)
     local identifier = citizenId(src)
-    local id = type(data) == 'table' and tonumber(data.id) or nil
+    local id = type(data) == 'table' and cleanId(data.id) or nil
     if not identifier or not id or not db:wait() then return end
 
-    local row = db:delete(identifier, id)
+    local _, row = locked('row:' .. id, function() return db:delete(identifier, id) end)
     if not row then return end
     syncAudience(row, identifier)
     return sheet(identifier)
@@ -680,91 +717,112 @@ end)
 
 lib.callback.register(_e('3dmap:share'), function(src, data)
     local identifier = citizenId(src)
-    local id = type(data) == 'table' and tonumber(data.id) or nil
-    local target = type(data) == 'table' and tonumber(data.target) or nil
+    local id = type(data) == 'table' and cleanId(data.id) or nil
+    local target = type(data) == 'table' and cleanId(data.target) or nil
     if not identifier or not id or not db:wait() then return fail('invalid') end
-    if not target or target ~= math.floor(target) or target == src then return fail('player') end
+    if not target or target == src then return fail('player') end
     if not GetPlayerName(target) then return fail('player') end
 
     local targetId = citizenId(target)
     if not targetId or targetId == identifier then return fail('player') end
-    if LT.Cooldown.Check(identifier, '3dmap:share') then return fail('shareCooldown') end
+    local lock = 'share:' .. identifier
+    if locks[lock] or LT.Cooldown.Check(identifier, '3dmap:share') then return fail('shareCooldown') end
 
-    local row = db:row(identifier, id)
-    if not row then return fail('invalid') end
+    local ran, result = locked(lock, function()
+        local _, edited = locked('row:' .. id, function()
+            local row = db:row(identifier, id)
+            if not row then return fail('invalid') end
 
-    local shares = asTable(row.shares)
-    local requests = asTable(row.requests)
-    if findIdentifier(shares, targetId) or findIdentifier(requests, targetId) then return fail('already') end
+            local shares = asTable(row.shares)
+            local requests = asTable(row.requests)
+            if findIdentifier(shares, targetId) or findIdentifier(requests, targetId) then return fail('already') end
 
-    requests[#requests + 1] = { identifier = targetId, name = playerName(src) }
-    db:writeLists(id, shares, requests)
-    LT.Cooldown.Start(identifier, '3dmap:share', mapCfg.shareCooldown or 30000)
+            requests[#requests + 1] = { identifier = targetId, name = playerName(src) }
+            db:writeLists(id, shares, requests)
+            LT.Cooldown.Start(identifier, '3dmap:share', mapCfg.shareCooldown or 30000)
+            return true
+        end)
+        return edited or fail('invalid')
+    end)
+    if not ran then return fail('invalid') end
+    if result ~= true then return result end
     sync(targetId)
     return sheet(identifier, 'sent')
 end)
 
 lib.callback.register(_e('3dmap:unshare'), function(src, data)
     local identifier = citizenId(src)
-    local id = type(data) == 'table' and tonumber(data.id) or nil
+    local id = type(data) == 'table' and cleanId(data.id) or nil
     local targetId = type(data) == 'table' and data.identifier or nil
     if not identifier or not id or type(targetId) ~= 'string' or targetId == '' or not db:wait() then
         return fail('invalid')
     end
 
-    local row = db:row(identifier, id)
-    if not row then return fail('invalid') end
+    local _, removed = locked('row:' .. id, function()
+        local row = db:row(identifier, id)
+        if not row then return false end
 
-    local shares = asTable(row.shares)
-    if not findIdentifier(shares, targetId) then return fail('invalid') end
+        local shares = asTable(row.shares)
+        if not findIdentifier(shares, targetId) then return false end
 
-    db:writeLists(id, withoutIdentifier(shares, targetId), asTable(row.requests))
+        db:writeLists(id, withoutIdentifier(shares, targetId), asTable(row.requests))
+        return true
+    end)
+    if not removed then return fail('invalid') end
     sync(targetId)
     return sheet(identifier)
 end)
 
 lib.callback.register(_e('3dmap:accept'), function(src, data)
     local identifier = citizenId(src)
-    local id = type(data) == 'table' and tonumber(data.id) or nil
+    local id = type(data) == 'table' and cleanId(data.id) or nil
     if not identifier or not id or not db:wait() then return end
 
-    local row = db:rowById(id)
-    if not row then return end
+    local _, owner = locked('row:' .. id, function()
+        local row = db:rowById(id)
+        if not row then return nil end
 
-    local requests = asTable(row.requests)
-    local pending, requestIndex = findIdentifier(requests, identifier)
-    if not pending or not requestIndex then return end
+        local requests = asTable(row.requests)
+        local pending, requestIndex = findIdentifier(requests, identifier)
+        if not pending or not requestIndex then return nil end
 
-    local request = requests[requestIndex]
-    local fromName = type(request) == 'table' and type(request.name) == 'string' and request.name or ''
+        local request = requests[requestIndex]
+        local fromName = type(request) == 'table' and type(request.name) == 'string' and request.name or ''
 
-    local shares = asTable(row.shares)
-    if not findIdentifier(shares, identifier) then
-        shares[#shares + 1] = {
-            identifier = identifier,
-            name = playerName(src),
-            from = fromName,
-            at = os.time(),
-        }
-    end
+        local shares = asTable(row.shares)
+        if not findIdentifier(shares, identifier) then
+            shares[#shares + 1] = {
+                identifier = identifier,
+                name = playerName(src),
+                from = fromName,
+                at = os.time(),
+            }
+        end
 
-    db:writeLists(id, shares, withoutIdentifier(requests, identifier))
-    if row.owner ~= identifier then sync(row.owner) end
+        db:writeLists(id, shares, withoutIdentifier(requests, identifier))
+        return row.owner
+    end)
+    if not owner then return end
+    if owner ~= identifier then sync(owner) end
     return sheet(identifier)
 end)
 
 lib.callback.register(_e('3dmap:decline'), function(src, data)
     local identifier = citizenId(src)
-    local id = type(data) == 'table' and tonumber(data.id) or nil
+    local id = type(data) == 'table' and cleanId(data.id) or nil
     if not identifier or not id or not db:wait() then return end
 
-    local row = db:rowById(id)
-    if not row then return end
+    local _, declined = locked('row:' .. id, function()
+        local row = db:rowById(id)
+        if not row then return false end
 
-    local requests = asTable(row.requests)
-    if not findIdentifier(requests, identifier) then return end
+        local requests = asTable(row.requests)
+        if not findIdentifier(requests, identifier) then return false end
 
-    db:writeLists(id, asTable(row.shares), withoutIdentifier(requests, identifier))
+        db:writeLists(id, asTable(row.shares), withoutIdentifier(requests, identifier))
+        return true
+    end)
+    if not declined then return end
     return sheet(identifier)
 end)
 
@@ -779,6 +837,24 @@ local LEGACY_TABLES <const> = {
 local function tableExists(name)
     local rows = MySQL.query.await('SHOW TABLES LIKE ?', { (name:gsub('_', '\\_')) })
     return rows ~= nil and #rows > 0
+end
+
+--- Tables made earlier take the database default charset, which can be latin1: accented
+--- labels (ő, ű, ł, ș) would then fail to save.
+--- @param name string
+local function ensureUtf8mb4(name)
+    local collation = MySQL.scalar.await(
+        'SELECT TABLE_COLLATION FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+        { name }
+    )
+    if type(collation) ~= 'string' or collation:find('^utf8mb4') then return end
+    local ok, err = pcall(MySQL.query.await,
+        ('ALTER TABLE `%s` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'):format(name))
+    if ok then
+        LT.Debug.Success('Converted table %s to utf8mb4.', name)
+    else
+        LT.Debug.Error('Could not convert table %s to utf8mb4: %s', name, tostring(err))
+    end
 end
 
 local function migrateLegacyTables()
@@ -812,6 +888,8 @@ local function bootDatabase(database)
 
     MySQL.query.await(MARKERS_SCHEMA)
     MySQL.query.await(GLOBALS_SCHEMA)
+    ensureUtf8mb4('nightreign_pausemenu_markers')
+    ensureUtf8mb4('nightreign_pausemenu_global_markers')
     database.ready = true
     LT.Debug.Success('Marker database initialized.')
 end

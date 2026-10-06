@@ -197,22 +197,25 @@ function CameraClass:markMoving()
     self.wasDragging = true
 end
 
-function CameraClass:fadeOut()
-    local ms = camCfg.fadeMs or 250
-    DoScreenFadeOut(ms)
-    while not IsScreenFadedOut() do
+--- Another script can take over the fade meanwhile (respawn, teleport): never wait forever.
+--- @param done fun(): boolean
+local function waitFade(done)
+    local deadline = GetGameTimer() + (camCfg.fadeMs or 250) + 1500
+    while not done() and GetGameTimer() < deadline do
         Wait(0)
     end
 end
 
+function CameraClass:fadeOut()
+    DoScreenFadeOut(camCfg.fadeMs or 250)
+    waitFade(IsScreenFadedOut)
+end
+
 --- @param waitDone? boolean
 function CameraClass:fadeIn(waitDone)
-    local ms = camCfg.fadeMs or 250
-    DoScreenFadeIn(ms)
+    DoScreenFadeIn(camCfg.fadeMs or 250)
     if waitDone then
-        while not IsScreenFadedIn() do
-            Wait(0)
-        end
+        waitFade(IsScreenFadedIn)
     end
 end
 
@@ -838,9 +841,7 @@ function CameraClass:openMap()
     self.open = true
     self:fadeIn(false)
     self:transition(gameplayPos, targetPos, gameplayRot.z, MAP_YAW, gameplayRot.x, camCfg.pitch)
-    while not IsScreenFadedIn() do
-        Wait(0)
-    end
+    waitFade(IsScreenFadedIn)
     self:updateFocus(targetPos.x, targetPos.y, targetPos.z)
 
     self:startMoveThread()

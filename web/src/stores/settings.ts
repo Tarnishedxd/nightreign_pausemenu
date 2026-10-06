@@ -18,6 +18,7 @@ export const useSettingsStore = defineStore("settings", {
 			keyBindings: false,
 			keyGroups: [],
 			activeKeyGroupId: "",
+			keyPreview: false,
 			listenIndex: -1,
 			listenSlot: "",
 			listenPhase: "",

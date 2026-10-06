@@ -138,7 +138,7 @@ declare global {
   export type { Hsv } from './src/utils/color'
   import('./src/utils/color')
   // @ts-ignore
-  export type { Page, StatSkillId, StatSkill, StatCareer, StatsPayload, LocaleStore, MapInfoState, SettingsCategory, SettingKind, GameSettingRow, KeyBindingGroup, KeyBindingRow, SettingsRow, SettingsState, GtaAlertButton, GtaAlertState, SettingsStore, MainStore, Player, MarkerGroup, MarkerShare, MarkerPoint, MarkerRequest, MarkerDraft, GlobalCategory, MarkerSheet, MarkerNoticeKind, MarkersStore, LegendKind, LegendRow, LegendGroup, LegendToast, LegendStatus, LegendState, LegendStore } from './src/types/index'
+  export type { Page, StatSkillId, StatSkill, StatCareer, StatsPayload, LocaleStore, MapInfoState, SettingsCategory, SettingKind, GameSettingRow, KeyBindingGroup, KeyBindingRow, SettingsRow, KeyBindingPreview, SettingsState, GtaAlertButton, GtaAlertState, SettingsStore, MainStore, Player, MarkerGroup, MarkerShare, MarkerPoint, MarkerRequest, MarkerDraft, GlobalCategory, MarkerSheet, MarkerNoticeKind, MarkersStore, LegendKind, LegendRow, LegendGroup, LegendToast, LegendStatus, LegendState, LegendStore } from './src/types/index'
   import('./src/types/index')
 }
 

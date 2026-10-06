@@ -96,7 +96,7 @@
 					leave-active-class="transition duration-150 ease-in"
 					leave-from-class="opacity-100"
 					leave-to-class="opacity-0">
-					<div v-if="settings.keyGroups.length < 2" key="group-skeleton" class="flex flex-col gap-2">
+					<div v-if="shownKeyGroups.length < 2" key="group-skeleton" class="flex flex-col gap-2">
 						<div
 							v-for="(width, index) in keyGroupSkeletonWidths"
 							:key="index"
@@ -108,9 +108,9 @@
 								:style="{ width: `${width}%` }" />
 						</div>
 					</div>
-					<div v-else key="groups" class="flex flex-col gap-2">
+					<div v-else key="groups" class="flex flex-col gap-2" :class="keyPreview ? 'pointer-events-none' : ''">
 						<button
-							v-for="(group, index) in settings.keyGroups"
+							v-for="(group, index) in shownKeyGroups"
 							:key="group.id"
 							:data-group="group.id"
 							type="button"
@@ -207,6 +207,7 @@
 					<div
 						v-else-if="settings.keyBindings"
 						key="keys"
+						:class="keyPreview ? 'pointer-events-none opacity-80' : ''"
 						class="min-h-0 flex-1 overflow-y-auto pr-3 [scrollbar-color:rgb(255_255_255/0.22)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar]:w-1.5">
 						<div class="mb-2 grid grid-cols-[7fr_1.5fr] items-center gap-3 px-4 text-sm text-white/40">
 							<span>{{ _t("ui.settings.keys.action", "Action") }}</span>
@@ -221,7 +222,7 @@
 								:class="rowFocusClass(row.id)"
 								@click="focusRow(row.id)">
 								<div class="min-w-0">
-									<p class="truncate text-base text-white/85">{{ row.action }}</p>
+									<p class="truncate text-base text-white/85">{{ keyActionLabel(row.action) }}</p>
 									<span
 										v-if="row.resource"
 										class="mt-1 block w-fit max-w-full truncate rounded bg-amber-300/20 px-1.5 py-0.5 text-[10px] font-medium leading-none text-amber-200">
@@ -482,7 +483,7 @@ import {
 const settingsStore = useSettingsStore();
 const { settings, alert } = storeToRefs(settingsStore);
 const { panelStyle, experimentalLabels } = usePreferences();
-const { categoryLabel, settingLabel: labelFor, choiceLabel: choiceFor, sharedLabel } = useExperimental();
+const { categoryLabel, settingLabel: labelFor, choiceLabel: choiceFor, sharedLabel, keyActionLabel } = useExperimental();
 const categoryIndex = () => activeCategory()?.index ?? -1;
 const settingLabel = (row: GameSettingRow) => labelFor(categoryIndex(), row);
 const choiceLabel = (row: GameSettingRow, index: number) => choiceFor(categoryIndex(), row, index);
@@ -511,19 +512,29 @@ const pageTitle = () => {
 
 // rows
 const query = ref("");
+// While GTA builds the key bindings pane (a few seconds), show the last list seen, read-only.
+const keyPreview = computed(() => {
+	const state = settings.value;
+	if (!state.keyBindings || state.status !== "loading" || state.rows.length || !state.keyPreview) return null;
+	return state.keyPreview;
+});
+const shownKeyGroups = computed(() => keyPreview.value?.groups ?? settings.value.keyGroups);
+const sourceRows = computed<SettingsRow[]>(() => keyPreview.value?.rows ?? settings.value.rows);
 const filteredRows = computed(() => {
 	const search = query.value.toLocaleLowerCase();
-	if (!search) return settings.value.rows;
-	return settings.value.rows.filter((row) => {
+	if (!search) return sourceRows.value;
+	return sourceRows.value.filter((row) => {
 		if (row.type === "keybind") {
-			return `${row.action} ${row.resource} ${row.primary}`.toLocaleLowerCase().includes(search);
+			return `${keyActionLabel(row.action)} ${row.action} ${row.resource} ${row.primary}`.toLocaleLowerCase().includes(search);
 		}
 		return `${settingLabel(row)} ${displayValue(row)} ${row.choices.map((_, choiceIndex) => choiceLabel(row, choiceIndex)).join(" ")}`
 			.toLocaleLowerCase()
 			.includes(search);
 	});
 });
-const activeKeyGroupId = computed(() => settings.value.activeKeyGroupId || settings.value.keyGroups[0]?.id || "");
+const activeKeyGroupId = computed(
+	() => keyPreview.value?.activeGroupId || settings.value.activeKeyGroupId || shownKeyGroups.value[0]?.id || "",
+);
 const listedRows = computed(() => {
 	if (!settings.value.keyBindings) return filteredRows.value;
 	const groupId = activeKeyGroupId.value;

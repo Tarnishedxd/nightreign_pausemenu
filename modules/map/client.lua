@@ -703,7 +703,12 @@ function NativeMapClass:enqueue(fn)
                     self.queueRunning = true
                 end
             else
-                job()
+                -- a failing job must not stall the queue (and every later legend click) until close
+                local ok, err = pcall(job)
+                if not ok then
+                    self.inputLock = false
+                    LT.Debug.Error('map legend action failed: %s', tostring(err))
+                end
             end
         end
         if self.mode ~= 'legend' then

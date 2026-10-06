@@ -2,7 +2,9 @@ local cfg <const> = require 'config.main'
 local premiumCfg <const> = cfg.pause.premium or {}
 local showPlayerCount <const> = cfg.pause.showPlayerCount == true
 local PLAYER_TTL <const> = 60000
-local MONEY_TTL <const> = 35000
+-- Only absorbs repeated requests: the client asks at most every 8 s, and money spent a moment ago
+-- must already show when the menu opens again.
+local MONEY_TTL <const> = 5000
 
 local playerCount = {
     at = nil,

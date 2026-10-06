@@ -410,6 +410,18 @@ function SettingsBridgeClass:setBusy(value)
     self.state.busy = value
 end
 
+--- Runs fn on its own thread with the page busy. An error must not leave it busy: the menu
+--- only closes once the page is idle, so the player would be stuck in it.
+--- @param fn fun(): boolean|nil return true to stay busy (the popup answer clears it)
+function SettingsBridgeClass:busyThread(fn)
+    self:setBusy(true)
+    CreateThread(function()
+        local ok, keep = pcall(fn)
+        if not ok then LT.Debug.Error('settings action failed: %s', tostring(keep)) end
+        if not ok or keep ~= true then self:setBusy(false) end
+    end)
+end
+
 function SettingsBridgeClass:startHideLoop()
     if self.hideThread then return end
     self.hideThread = true
@@ -1633,8 +1645,10 @@ function SettingsBridgeClass:runChangeQueue()
             self.changeByRow[key] = nil
             if change then
                 self:setBusy(true)
-                self:applyChange(change)
+                -- a failed change must not leave the page busy (and the queue dead) for the session
+                local ok, err = pcall(self.applyChange, self, change)
                 self:setBusy(false)
+                if not ok then LT.Debug.Error('settings change failed: %s', tostring(err)) end
             end
         end
         self.changeThread = false
@@ -1750,11 +1764,9 @@ function SettingsBridgeClass:activateSetting(data)
     local row = index and self.rowByIndex[index]
     if not row or row.kind ~= 'button' or row.editable == false then return false end
 
-    self:setBusy(true)
-    CreateThread(function()
+    self:busyThread(function()
         if not self:call('M_PRESS_EVENT', row.index, column, false, true) then
             LT.Debug.Warn('settings activate failed press index=%s', tostring(row.index))
-            self:setBusy(false)
             return
         end
         local versionBefore = self:readInt('GET_BRIDGE_VERSION', chunkTimeout) or self.lastVersion
@@ -1780,7 +1792,6 @@ function SettingsBridgeClass:activateSetting(data)
             self:refreshActive(true)
             LT.Debug.Info('settings activate version %s -> %s', tostring(versionBefore), tostring(version))
         end
-        self:setBusy(false)
     end)
     return true
 end
@@ -1824,8 +1835,7 @@ function SettingsBridgeClass:activateKeyButton(data)
         return false
     end
 
-    self:setBusy(true)
-    CreateThread(function()
+    self:busyThread(function()
         LT.Debug.Info('settings key button activate id=%s index=%s', tostring(group.id), tostring(group.index))
         self:leaveTopMenu()
         self:readInt('BRIDGE_PRESS', returnTimeout, group.index, column)
@@ -1858,7 +1868,6 @@ function SettingsBridgeClass:activateKeyButton(data)
         if self.active and (opened or version ~= versionBefore) then
             self:refreshActive(true)
         end
-        self:setBusy(false)
     end)
     return true
 end
@@ -1895,18 +1904,16 @@ function SettingsBridgeClass:promptUnsaved(categoryId)
 end
 
 function SettingsBridgeClass:commitGraphics()
-    CreateThread(function()
-        self:setBusy(true)
+    self:busyThread(function()
         self.applyHoldUntil = GetGameTimer() + 500
         self:pulseSpaceApply()
         local opened = PopupBridge and PopupBridge:capture(500) or false
         self.applyHoldUntil = 0
-        if not opened then
-            self:setBusy(false)
-            if self.active then
-                self:hideFrontend()
-                self:focusUi()
-            end
+        -- the confirm popup is up: its answer clears busy
+        if opened then return true end
+        if self.active then
+            self:hideFrontend()
+            self:focusUi()
         end
     end)
 end
@@ -2009,7 +2016,8 @@ function SettingsBridgeClass:listenForKey(data)
     self.state:sync()
     Wait(0)
     CreateThread(function()
-        self:withKeyScreen(function()
+        -- always finish the listen below, or the row stays waiting for a key until the page closes
+        local ok, err = pcall(self.withKeyScreen, self, function()
             if not self.active or not self.listening then return end
             if column ~= self.navColumn then
                 self:call('M_PRESS_EVENT', row.index, column, false, true)
@@ -2097,6 +2105,7 @@ function SettingsBridgeClass:listenForKey(data)
                 Wait(50)
             end
         end)
+        if not ok then LT.Debug.Error('key binding failed: %s', tostring(err)) end
         if self.active then
             self:finishListen()
         end
@@ -2355,49 +2364,45 @@ end
 -- NUI
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
+--- Always answers the page (it waits for the reply), and a failed action does not leave the
+--- settings page busy: the menu only closes once it is idle.
+--- @param name string
+--- @param fn fun(data: table): boolean
+local function settingsCallback(name, fn)
+    LT.NUI.Callback(name, function(data, cb)
+        local ok, result = pcall(fn, type(data) == 'table' and data or {})
+        if not ok then
+            LT.Debug.Error('%s failed: %s', name, tostring(result))
+            SettingsBridge:setBusy(false)
+            result = false
+        end
+        cb({ ok = result })
+    end)
+end
+
 LT.NUI.Callback('SettingsLanguage', function(_, cb)
     cb({ language = GetCurrentLanguage() or 0 })
 end)
 
-LT.NUI.Callback('SettingsUseEnglish', function(_, cb)
-    cb({ ok = SettingsBridge:useEnglish() })
-end)
+settingsCallback('SettingsUseEnglish', function(_) return SettingsBridge:useEnglish() end)
 
-LT.NUI.Callback('SettingsReopen', function(_, cb)
-    cb({ ok = SettingsBridge:reopen() })
-end)
+settingsCallback('SettingsReopen', function(_) return SettingsBridge:reopen() end)
 
-LT.NUI.Callback('SettingsSetCategory', function(data, cb)
-    cb({ ok = SettingsBridge:selectCategory(data and data.id or '') })
-end)
+settingsCallback('SettingsSetCategory', function(data) return SettingsBridge:selectCategory(data.id or '') end)
 
-LT.NUI.Callback('SettingsUnsaved', function(_, cb)
-    cb({ ok = SettingsBridge:promptUnsaved() })
-end)
+settingsCallback('SettingsUnsaved', function(_) return SettingsBridge:promptUnsaved() end)
 
-LT.NUI.Callback('SettingsChange', function(data, cb)
-    cb({ ok = SettingsBridge:queueChange(data or {}) })
-end)
+settingsCallback('SettingsChange', function(data) return SettingsBridge:queueChange(data) end)
 
-LT.NUI.Callback('SettingsApply', function(_, cb)
-    cb({ ok = SettingsBridge:applyGraphics() })
-end)
+settingsCallback('SettingsApply', function(_) return SettingsBridge:applyGraphics() end)
 
-LT.NUI.Callback('SettingsActivate', function(data, cb)
-    cb({ ok = SettingsBridge:activateSetting(data or {}) })
-end)
+settingsCallback('SettingsActivate', function(data) return SettingsBridge:activateSetting(data) end)
 
-LT.NUI.Callback('SettingsActivateKey', function(data, cb)
-    cb({ ok = SettingsBridge:activateKeyButton(data or {}) })
-end)
+settingsCallback('SettingsActivateKey', function(data) return SettingsBridge:activateKeyButton(data) end)
 
-LT.NUI.Callback('SettingsListen', function(data, cb)
-    cb({ ok = SettingsBridge:listenForKey(data or {}) })
-end)
+settingsCallback('SettingsListen', function(data) return SettingsBridge:listenForKey(data) end)
 
-LT.NUI.Callback('SettingsListenCancel', function(_, cb)
-    cb({ ok = SettingsBridge:cancelListen() })
-end)
+settingsCallback('SettingsListenCancel', function(_) return SettingsBridge:cancelListen() end)
 
 function SettingsBridgeClass:selectKeyGroup(groupId)
     if not self.active or not self.state.keyBindings or self:isBusy() then return false end
@@ -2450,9 +2455,7 @@ function SettingsBridgeClass:selectKeyGroup(groupId)
     return true
 end
 
-LT.NUI.Callback('SettingsSetKeyGroup', function(data, cb)
-    cb({ ok = SettingsBridge:selectKeyGroup(data and data.id or '') })
-end)
+settingsCallback('SettingsSetKeyGroup', function(data) return SettingsBridge:selectKeyGroup(data.id or '') end)
 
 LT.Hooks.Stop(function()
     SettingsBridge:stop()

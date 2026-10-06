@@ -40,7 +40,7 @@ return {
     --- Available: 'en', 'tr', 'hu', 'de', 'fr', 'es', 'it', 'pl', 'ro'
     --- Missing keys fall back to English; an unknown locale falls back to English with a console warning.
     --- @type 'en' | 'tr' | 'hu' | 'de' | 'fr' | 'es' | 'it' | 'pl' | 'ro' | string
-    locale = 'en',
+    locale = 'hu',
 
     --- @type string Currency symbol (e.g. USD, TRY, EUR etc.)
     currency = 'USD',
@@ -121,11 +121,18 @@ return {
             --- @type number
             blendOutMs = 750,
 
-            --- Metres of camera + look drift before a follow blend.
+            --- Follow the character when something moves it while the menu is open (carried,
+            --- pushed, ragdolled, teleported). The camera always holds still while the pause
+            --- animation plays, and hands over to the game camera if the character is put in a
+            --- vehicle. false: the camera never moves after opening.
+            --- @type boolean
+            follow = true,
+
+            --- Metres the character must move before the camera starts following.
             --- @type number
             followMove = 0.45,
 
-            --- Portrait → updated portrait blend (ms).
+            --- Roughly how long the camera takes to catch up when following (ms).
             --- @type number
             followBlendMs = 700,
 

@@ -28,7 +28,10 @@
 
 			<div
 				v-else
-				class="flex max-h-[calc(100vh-16rem)] flex-col items-end gap-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+				ref="listRef"
+				class="mt-1 flex max-h-[calc(100vh-16rem)] flex-col items-end gap-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+				:style="listMask"
+				@scroll.passive="updateFade">
 				<p v-if="!hasRows" class="px-4 py-3 text-sm text-white/55">
 					{{ _t("ui.map.empty", "Nothing matches") }}
 				</p>
@@ -114,6 +117,7 @@ import type { LegendRow } from "@/types";
 
 const { panelStyle } = usePreferences();
 const { legend } = storeToRefs(useLegendStore());
+const { listRef, listMask, updateFade } = useScrollFade();
 const query = ref("");
 
 const showPanel = computed(() => legend.value.status === "loading" || legend.value.status === "ready");

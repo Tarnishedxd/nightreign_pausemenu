@@ -131,6 +131,21 @@ function BlipNames.learn(rows)
         end
     end
     if not next(fresh) then return end
+    -- the legend is read again on every change while the map page is open: only touch the
+    -- stored names (a disk write) when one of them is new or different
+    local changed = false
+    for icon, list in pairs(fresh) do
+        local known = BlipNames.byIcon[icon]
+        if not known or #known ~= #list then
+            changed = true
+        else
+            for n = 1, #list do
+                if known[n].label ~= list[n].label or known[n].colour ~= list[n].colour then changed = true end
+            end
+        end
+        if changed then break end
+    end
+    if not changed then return end
     -- icons missing from this legend (e.g. a job's blips while off duty) keep their names
     local merged = {}
     for icon, list in pairs(BlipNames.byIcon) do merged[icon] = list end
@@ -714,6 +729,9 @@ function ThreeDMapClass:publish()
         isAdmin = self.isAdmin == true,
         placingMode = self.placingMode or false,
         globalCategories = globalCategories,
+        -- names come from the GTA map legend: once it was read, a blip still unnamed is one the
+        -- legend does not list, and asking to open the map again would not help
+        legendLearned = next(BlipNames.byIcon) ~= nil,
     })
 end
 

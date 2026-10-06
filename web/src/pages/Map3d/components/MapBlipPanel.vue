@@ -795,44 +795,14 @@ const toggleHidden = (stack: Stack) => {
 	}
 };
 
-/** The list fades out at an edge that has more rows past it, instead of cutting a row in half. */
-const listRef = ref<HTMLElement>();
-const fadeTop = ref(false);
-const fadeBottom = ref(false);
-const FADE = "24px";
-const updateFade = () => {
-	const el = listRef.value;
-	if (!el) return;
-	fadeTop.value = el.scrollTop > 1;
-	fadeBottom.value = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
-};
-const listMask = computed(() => {
-	if (!fadeTop.value && !fadeBottom.value) return {};
-	const top = fadeTop.value ? `transparent 0, #000 ${FADE}` : "#000 0";
-	const bottom = fadeBottom.value ? `#000 calc(100% - ${FADE}), transparent 100%` : "#000 100%";
-	const mask = `linear-gradient(to bottom, ${top}, ${bottom})`;
-	return { maskImage: mask, WebkitMaskImage: mask };
-});
-let listObserver: ResizeObserver | null = null;
-watch(listRef, (el) => {
-	listObserver?.disconnect();
-	listObserver = null;
-	if (!el) return;
-	listObserver = new ResizeObserver(updateFade);
-	listObserver.observe(el);
-	updateFade();
-});
-// the list height changes with rows coming or going and groups folding; no need to walk every blip
-watch(
-	[() => points.value.length, () => groups.value.length, () => JSON.stringify(collapsed.value)],
-	() => nextTick(updateFade),
-);
+const { listRef, listMask, updateFade } = useScrollFade();
 
-const hasUnnamed = computed(() => points.value.some((point) => point.group === "server" && !point.label));
+const hasUnnamed = computed(
+	() => !sheet.value.legendLearned && points.value.some((point) => point.group === "server" && !point.label),
+);
 
 onMounted(() => window.addEventListener("keydown", onEscape, true));
 onUnmounted(() => {
-	listObserver?.disconnect();
 	window.removeEventListener("keydown", onEscape, true);
 	clearWaypointAck();
 });

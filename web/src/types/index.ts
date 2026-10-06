@@ -221,6 +221,8 @@ export type MarkerSheet = {
 	isAdmin?: boolean;
 	placingMode?: false | "personal" | "global";
 	globalCategories?: GlobalCategory[];
+	/** The GTA map legend was read at least once: blip names are known. */
+	legendLearned?: boolean;
 };
 
 export type MarkerNoticeKind = "success" | "error";

@@ -38,7 +38,7 @@ end
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
 local MAX_SPRITE <const> = 1000
-local NAMES_KVP <const> = 'nightreign_pausemenu_blipNames'
+local NAMES_KVP <const> = 'nightreign_pausemenu_blipNames2'
 --- The player arrow and the waypoint have their own rows.
 local SKIP_SPRITES <const> = { [6] = true, [8] = true }
 --- What a blip is attached to (GET_BLIP_INFO_ID_TYPE): 2 ped, 3 object, 4 coord. Vehicles move;
@@ -54,17 +54,33 @@ local function hexRgb(hex)
     return tonumber(r, 16), tonumber(g, 16), tonumber(b, 16)
 end
 
---- Blip names cannot be read through natives, only the GTA map legend has them. They are
---- learned whenever the legend is read (the map page) and kept between sessions.
-BlipNames = { bySprite = {} }
+--- Blip names cannot be read through natives, only the GTA map legend has them. Its rows carry
+--- the icon name (radar_*) rather than the sprite id, so web/build/blips.json (id -> icon name,
+--- written by the UI build) links the two. Names are learned whenever the legend is read (the
+--- map page) and kept between sessions.
+BlipNames = { byIcon = {}, iconOf = {} }
+local NAMES_KVP_OLD <const> = 'nightreign_pausemenu_blipNames'
 
 function BlipNames.load()
-    local ok, decoded = pcall(json.decode, GetResourceKvpString(NAMES_KVP) or '')
-    if not ok or type(decoded) ~= 'table' then return end
-    -- keep only well-formed entries: { [sprite] = { { label, colour? }, ... } }
+    local icons = {}
+    local ok, decoded = pcall(json.decode, LoadResourceFile(GetCurrentResourceName(), 'web/build/blips.json') or '')
+    if ok and type(decoded) == 'table' then
+        for id, icon in pairs(decoded) do
+            local sprite = tonumber(id)
+            if sprite and type(icon) == 'string' then icons[floor(sprite)] = icon:lower() end
+        end
+    end
+    BlipNames.iconOf = icons
+
+    -- names keyed by sprite id (first version) were often filed under the wrong sprite
+    if GetResourceKvpString(NAMES_KVP_OLD) then DeleteResourceKvp(NAMES_KVP_OLD) end
+    local stored
+    ok, stored = pcall(json.decode, GetResourceKvpString(NAMES_KVP) or '')
+    if not ok or type(stored) ~= 'table' then return end
+    -- keep only well-formed entries: { [icon] = { { label, colour? }, ... } }
     local clean = {}
-    for key, list in pairs(decoded) do
-        if type(key) == 'string' and type(list) == 'table' then
+    for icon, list in pairs(stored) do
+        if type(icon) == 'string' and icon:find('^radar_') and type(list) == 'table' then
             local entries = {}
             for i = 1, #list do
                 local entry = list[i]
@@ -72,31 +88,35 @@ function BlipNames.load()
                     entries[#entries + 1] = { label = entry.label, colour = type(entry.colour) == 'string' and entry.colour or nil }
                 end
             end
-            if #entries > 0 then clean[key] = entries end
+            if #entries > 0 then clean[icon] = entries end
         end
     end
-    BlipNames.bySprite = clean
+    BlipNames.byIcon = clean
 end
 
---- @param rows table[] parsed legend rows (label, blipSprite, colour, kind)
+--- @param rows table[] parsed legend rows (label, sprite = icon name, colour, kind)
 function BlipNames.learn(rows)
     local fresh = {}
     for i = 1, #(rows or {}) do
         local row = rows[i]
-        local sprite = tonumber(row.blipSprite)
-        if row.kind == 'blip' and sprite and type(row.label) == 'string' and row.label ~= '' then
-            local key = tostring(floor(sprite))
-            local list = fresh[key] or {}
-            list[#list + 1] = { label = row.label, colour = hexRgb(row.colour) and row.colour:lower() or nil }
-            fresh[key] = list
+        local icon = type(row.sprite) == 'string' and row.sprite:lower() or ''
+        if row.kind == 'blip' and icon:find('^radar_') and type(row.label) == 'string' and row.label ~= '' then
+            local list = fresh[icon] or {}
+            local colour = hexRgb(row.colour) and row.colour:lower() or nil
+            local known = false
+            for n = 1, #list do
+                if list[n].label == row.label and list[n].colour == colour then known = true end
+            end
+            if not known then list[#list + 1] = { label = row.label, colour = colour } end
+            fresh[icon] = list
         end
     end
     if not next(fresh) then return end
-    -- sprites missing from this legend (e.g. a job's blips while off duty) keep their names
+    -- icons missing from this legend (e.g. a job's blips while off duty) keep their names
     local merged = {}
-    for key, list in pairs(BlipNames.bySprite) do merged[key] = list end
-    for key, list in pairs(fresh) do merged[key] = list end
-    BlipNames.bySprite = merged
+    for icon, list in pairs(BlipNames.byIcon) do merged[icon] = list end
+    for icon, list in pairs(fresh) do merged[icon] = list end
+    BlipNames.byIcon = merged
     SetResourceKvp(NAMES_KVP, json.encode(merged))
 end
 
@@ -106,7 +126,8 @@ end
 --- @param b number|nil
 --- @return string|nil
 function BlipNames.lookup(spriteId, r, g, b)
-    local list = BlipNames.bySprite[tostring(spriteId)]
+    local icon = BlipNames.iconOf[spriteId]
+    local list = icon and BlipNames.byIcon[icon]
     if type(list) ~= 'table' or #list == 0 then return nil end
     if #list == 1 then return list[1].label end
     -- several names on one icon: the closest colour, all of them when that does not decide

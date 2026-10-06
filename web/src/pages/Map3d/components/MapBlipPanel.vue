@@ -41,7 +41,10 @@
 					</div>
 
 					<div
-						class="flex min-h-0 w-full flex-1 flex-col items-end gap-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+						ref="listRef"
+						class="mt-1 flex min-h-0 w-full flex-1 flex-col items-end gap-0.5 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+						:style="listMask"
+						@scroll.passive="updateFade">
 						<p v-if="!hasRows" class="map-bar w-full rounded-sm px-4 py-3 text-sm text-white/55">
 							{{ _t("ui.map.empty", "Nothing matches") }}
 						</p>
@@ -57,6 +60,11 @@
 								<span class="truncate">{{ _t(group.label, group.label) }}</span>
 							</button>
 							<div v-if="!collapsed[group.id]" class="flex w-full flex-col items-end gap-0.5">
+								<p
+									v-if="group.id === 'server' && hasUnnamed"
+									class="map-bar w-full rounded-sm px-3 py-2 text-xs leading-snug text-white/60">
+									{{ _t("ui.map3d.namesHint", "Open the Map once to load the names.") }}
+								</p>
 								<div
 									v-for="stack in stacksIn(group.id)"
 									:key="stack.key"
@@ -787,8 +795,40 @@ const toggleHidden = (stack: Stack) => {
 	}
 };
 
+/** The list fades out at an edge that has more rows past it, instead of cutting a row in half. */
+const listRef = ref<HTMLElement>();
+const fadeTop = ref(false);
+const fadeBottom = ref(false);
+const FADE = "24px";
+const updateFade = () => {
+	const el = listRef.value;
+	if (!el) return;
+	fadeTop.value = el.scrollTop > 1;
+	fadeBottom.value = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+};
+const listMask = computed(() => {
+	if (!fadeTop.value && !fadeBottom.value) return {};
+	const top = fadeTop.value ? `transparent 0, #000 ${FADE}` : "#000 0";
+	const bottom = fadeBottom.value ? `#000 calc(100% - ${FADE}), transparent 100%` : "#000 100%";
+	const mask = `linear-gradient(to bottom, ${top}, ${bottom})`;
+	return { maskImage: mask, WebkitMaskImage: mask };
+});
+let listObserver: ResizeObserver | null = null;
+watch(listRef, (el) => {
+	listObserver?.disconnect();
+	listObserver = null;
+	if (!el) return;
+	listObserver = new ResizeObserver(updateFade);
+	listObserver.observe(el);
+	updateFade();
+});
+watch([points, groups, collapsed], () => nextTick(updateFade), { deep: true });
+
+const hasUnnamed = computed(() => points.value.some((point) => point.group === "server" && !point.label));
+
 onMounted(() => window.addEventListener("keydown", onEscape, true));
 onUnmounted(() => {
+	listObserver?.disconnect();
 	window.removeEventListener("keydown", onEscape, true);
 	clearWaypointAck();
 });

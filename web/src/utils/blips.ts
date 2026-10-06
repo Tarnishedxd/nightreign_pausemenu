@@ -56,22 +56,12 @@ export function blipSpriteId(sprite: string): number {
 	return resolveMeta(sprite)?.id ?? 1;
 }
 
-/** A readable name from the icon, for a blip the GTA map legend has not named yet. */
-export function spriteTitle(sprite: string): string {
-	const name = resolveMeta(sprite)?.name ?? sprite;
-	return name
-		.replace(/^radar_/i, "")
-		.split("_")
-		.filter(Boolean)
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join(" ");
-}
-
 type NamedPoint = { label: string; sprite: string };
 type ColouredPoint = { blipColour?: number; colourHex?: string };
 
 export function pointLabel(point: NamedPoint): string {
-	return point.label ? _t(point.label, point.label) : spriteTitle(point.sprite);
+	// server blips the GTA map legend has not named yet
+	return point.label ? _t(point.label, point.label) : _t("ui.map3d.unnamed", "Unnamed place");
 }
 
 export function pointColour(point: ColouredPoint): string {

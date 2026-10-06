@@ -69,11 +69,9 @@
 										@dblclick="setWaypoint(current(stack).id)">
 										<BlipIcon
 											:sprite="current(stack).sprite"
-											:colour="blipColourHex(current(stack).blipColour ?? 3)"
+											:colour="pointColour(current(stack))"
 											:size="iS(22)" />
-										<span class="min-w-0 flex-1 truncate">{{
-											_t(current(stack).label, current(stack).label)
-										}}</span>
+										<span class="min-w-0 flex-1 truncate">{{ pointLabel(current(stack)) }}</span>
 									</button>
 									<div
 										v-if="inStack(stack) && stack.points.length > 1"
@@ -115,8 +113,8 @@
 							class="map-bar px-3 py-2 transition-transform duration-300 ease-out"
 							:class="infoShown ? 'translate-y-0' : 'translate-y-full'">
 							<div class="flex items-center gap-2 text-sm">
-								<BlipIcon :sprite="detail.sprite" :colour="blipColourHex(detail.blipColour ?? 3)" :size="iS(22)" />
-								<span class="min-w-0 flex-1 truncate">{{ _t(detail.label, detail.label) }}</span>
+								<BlipIcon :sprite="detail.sprite" :colour="pointColour(detail)" :size="iS(22)" />
+								<span class="min-w-0 flex-1 truncate">{{ pointLabel(detail) }}</span>
 								<span class="shrink-0 tabular-nums text-white/55">{{ detail.metres }}m</span>
 								<button
 									v-if="detail.canDelete && !sheet.placing"
@@ -583,6 +581,7 @@ const stackKey = (groupId: string, point: (typeof points.value)[number]) =>
 		point.showOn2d === true ? "1" : "0",
 		String(point.spriteId ?? ""),
 		String(point.blipColour ?? ""),
+		point.colourHex ?? "",
 		String(point.scale ?? ""),
 		point.shortRange === false ? "0" : "1",
 	].join("\0");

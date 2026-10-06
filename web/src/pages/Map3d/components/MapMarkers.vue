@@ -11,7 +11,7 @@
 			@click.stop="pick(point.id)"
 			@dblclick.stop="setWaypoint(point.id)">
 			<span class="chip grid h-8 w-8 place-items-center rounded-sm bg-black/75 ring-1 ring-inset ring-white/15">
-				<BlipIcon :sprite="point.sprite" :colour="blipColourHex(point.blipColour ?? 3)" :size="iS(18)" plain />
+				<BlipIcon :sprite="point.sprite" :colour="pointColour(point)" :size="iS(18)" plain />
 			</span>
 			<span class="stem" />
 			<span class="dot" />
@@ -23,11 +23,35 @@
 const markers = useMarkersStore();
 const { points, selected, searchHits } = storeToRefs(markers);
 
+/**
+ * Only markers that have been on screen get a node, added a few per frame: a big server has
+ * hundreds of blips, and building them all at once stalls the page while the map opens.
+ */
+const MOUNT_PER_FRAME = 40;
+const mounted = shallowRef(new Set<string>());
+const mountQueue: string[] = [];
+let mountFrame = 0;
+
+const mountSome = () => {
+	mountFrame = 0;
+	const next = new Set(mounted.value);
+	// one that left the screen meanwhile waits until it is back
+	for (const id of mountQueue.splice(0, MOUNT_PER_FRAME)) if (last.has(id)) next.add(id);
+	mounted.value = next;
+	if (mountQueue.length) mountFrame = requestAnimationFrame(mountSome);
+};
+
+const queueMount = (id: string) => {
+	if (mounted.value.has(id) || mountQueue.includes(id)) return;
+	mountQueue.push(id);
+	if (!mountFrame) mountFrame = requestAnimationFrame(mountSome);
+};
+
 const visiblePoints = computed(() => {
 	const hits = searchHits.value;
-	if (!hits) return points.value;
-	const allow = new Set(hits);
-	return points.value.filter((point) => allow.has(point.id));
+	const allow = hits ? new Set(hits) : null;
+	const ready = mounted.value;
+	return points.value.filter((point) => ready.has(point.id) && (!allow || allow.has(point.id)));
 });
 
 const markerZ = (id: string) => {
@@ -74,8 +98,13 @@ const applyPositions = (positions: { id: string; x: number; y: number; scale: nu
 	for (const pos of positions) {
 		seen.add(pos.id);
 		const el = nodes.get(pos.id);
-		if (!el) continue;
 		const scale = Number.isFinite(pos.scale) ? pos.scale : 1;
+		if (!el) {
+			// placed where it belongs as soon as its node exists (setNode reads `last`)
+			last.set(pos.id, { x: pos.x, y: pos.y, scale });
+			queueMount(pos.id);
+			continue;
+		}
 		const prev = last.get(pos.id);
 		if (prev && Math.abs(prev.x - pos.x) < 0.0005 && Math.abs(prev.y - pos.y) < 0.0005 && Math.abs(prev.scale - scale) < 0.01) {
 			continue;
@@ -88,6 +117,9 @@ const applyPositions = (positions: { id: string; x: number; y: number; scale: nu
 		el.style.transform = parked;
 		last.delete(id);
 	}
+	for (const id of last.keys()) {
+		if (!seen.has(id) && !nodes.has(id)) last.delete(id);
+	}
 };
 
 const stop = onNuiAction("UpdateMarkerPositions", (data) => {
@@ -99,7 +131,10 @@ onMounted(() => {
 	fetchNui("ThreeDMapReady", {}, "ok");
 });
 
-onUnmounted(() => stop());
+onUnmounted(() => {
+	stop();
+	if (mountFrame) cancelAnimationFrame(mountFrame);
+});
 </script>
 
 <style scoped>

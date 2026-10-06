@@ -17,8 +17,8 @@
 				type="button"
 				class="map-bar flex h-11 w-full cursor-pointer items-center gap-2 px-3 text-left text-sm active:scale-[0.98]"
 				@click="pick(point.id)">
-				<BlipIcon :sprite="point.sprite" :colour="blipColourHex(point.blipColour ?? 3)" :size="iS(22)" />
-				<span class="min-w-0 flex-1 truncate">{{ _t(point.label, point.label) }}</span>
+				<BlipIcon :sprite="point.sprite" :colour="pointColour(point)" :size="iS(22)" />
+				<span class="min-w-0 flex-1 truncate">{{ pointLabel(point) }}</span>
 				<span class="ml-auto shrink-0 tabular-nums text-white/70">{{ point.metres }}m</span>
 			</button>
 		</div>
@@ -36,7 +36,7 @@ const results = computed(() => {
 	const needle = query.value.trim().toLocaleLowerCase();
 	if (!needle) return [];
 	return points.value
-		.filter((point) => _t(point.label, point.label).toLocaleLowerCase().includes(needle))
+		.filter((point) => pointLabel(point).toLocaleLowerCase().includes(needle))
 		.sort((a, b) => a.metres - b.metres)
 		.slice(0, 3);
 });

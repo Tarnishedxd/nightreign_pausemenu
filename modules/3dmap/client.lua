@@ -34,6 +34,136 @@ local function parseConfigSprite(value)
 end
 
 -- ════════════════════════════════════════════════════════════════════════════════════════════
+-- SERVER BLIPS (the places the GTA map shows)
+-- ════════════════════════════════════════════════════════════════════════════════════════════
+
+local MAX_SPRITE <const> = 1000
+local NAMES_KVP <const> = 'nightreign_pausemenu_blipNames'
+--- The player arrow and the waypoint have their own rows.
+local SKIP_SPRITES <const> = { [6] = true, [8] = true }
+--- What a blip is attached to (GET_BLIP_INFO_ID_TYPE): 2 ped, 3 object, 4 coord. Vehicles move;
+--- pickups and radius / area outlines are not places.
+local PLACE_TYPES <const> = { [2] = true, [3] = true, [4] = true }
+
+--- @param hex string|nil
+--- @return number|nil, number|nil, number|nil
+local function hexRgb(hex)
+    if type(hex) ~= 'string' then return nil end
+    local r, g, b = hex:match('^#(%x%x)(%x%x)(%x%x)$')
+    if not r then return nil end
+    return tonumber(r, 16), tonumber(g, 16), tonumber(b, 16)
+end
+
+--- Blip names cannot be read through natives, only the GTA map legend has them. They are
+--- learned whenever the legend is read (the map page) and kept between sessions.
+BlipNames = { bySprite = {} }
+
+function BlipNames.load()
+    local ok, decoded = pcall(json.decode, GetResourceKvpString(NAMES_KVP) or '')
+    if not ok or type(decoded) ~= 'table' then return end
+    -- keep only well-formed entries: { [sprite] = { { label, colour? }, ... } }
+    local clean = {}
+    for key, list in pairs(decoded) do
+        if type(key) == 'string' and type(list) == 'table' then
+            local entries = {}
+            for i = 1, #list do
+                local entry = list[i]
+                if type(entry) == 'table' and type(entry.label) == 'string' and entry.label ~= '' then
+                    entries[#entries + 1] = { label = entry.label, colour = type(entry.colour) == 'string' and entry.colour or nil }
+                end
+            end
+            if #entries > 0 then clean[key] = entries end
+        end
+    end
+    BlipNames.bySprite = clean
+end
+
+--- @param rows table[] parsed legend rows (label, blipSprite, colour, kind)
+function BlipNames.learn(rows)
+    local fresh = {}
+    for i = 1, #(rows or {}) do
+        local row = rows[i]
+        local sprite = tonumber(row.blipSprite)
+        if row.kind == 'blip' and sprite and type(row.label) == 'string' and row.label ~= '' then
+            local key = tostring(floor(sprite))
+            local list = fresh[key] or {}
+            list[#list + 1] = { label = row.label, colour = hexRgb(row.colour) and row.colour:lower() or nil }
+            fresh[key] = list
+        end
+    end
+    if not next(fresh) then return end
+    -- sprites missing from this legend (e.g. a job's blips while off duty) keep their names
+    local merged = {}
+    for key, list in pairs(BlipNames.bySprite) do merged[key] = list end
+    for key, list in pairs(fresh) do merged[key] = list end
+    BlipNames.bySprite = merged
+    SetResourceKvp(NAMES_KVP, json.encode(merged))
+end
+
+--- @param spriteId integer
+--- @param r number|nil
+--- @param g number|nil
+--- @param b number|nil
+--- @return string|nil
+function BlipNames.lookup(spriteId, r, g, b)
+    local list = BlipNames.bySprite[tostring(spriteId)]
+    if type(list) ~= 'table' or #list == 0 then return nil end
+    if #list == 1 then return list[1].label end
+    -- several names on one icon: the closest colour, all of them when that does not decide
+    local best, labels, seen = math.huge, {}, {}
+    for i = 1, #list do
+        local cr, cg, cb = hexRgb(list[i].colour)
+        local d = (cr and r) and ((cr - r) ^ 2 + (cg - g) ^ 2 + (cb - b) ^ 2) or math.huge
+        if d < best then best, labels, seen = d, {}, {} end
+        if d == best and not seen[list[i].label] then
+            seen[list[i].label] = true
+            labels[#labels + 1] = list[i].label
+        end
+    end
+    return table.concat(labels, ' / ')
+end
+
+--- Every place blip on the map, as other scripts made it (not ours).
+--- @param ours table<number, boolean>
+--- @return table[]
+local function scanServerBlips(ours)
+    local found = {}
+    local playerBlip = GetMainPlayerBlipId()
+    for sprite = 1, MAX_SPRITE do
+        if not SKIP_SPRITES[sprite] then
+            local blip = GetFirstBlipInfoId(sprite)
+            local guard = 0
+            while blip and blip ~= 0 and guard < 4096 and DoesBlipExist(blip) do
+                guard += 1
+                local kind = GetBlipInfoIdType(blip)
+                if blip ~= playerBlip and not ours[blip] and PLACE_TYPES[kind] and GetBlipAlpha(blip) > 0 then
+                    -- a ped / object blip counts while its entity is here and is not a player
+                    local keep = kind == 4
+                    if not keep then
+                        local entity = GetBlipInfoIdEntityIndex(blip)
+                        keep = entity ~= 0 and DoesEntityExist(entity) and not (kind == 2 and IsPedAPlayer(entity))
+                    end
+                    if keep then
+                        local pos = GetBlipInfoIdCoord(blip)
+                        local r, g, b = GetHudColour(GetBlipHudColour(blip))
+                        found[#found + 1] = {
+                            sprite = sprite,
+                            x = pos.x + 0.0,
+                            y = pos.y + 0.0,
+                            z = pos.z + 0.0,
+                            colour = GetBlipColour(blip),
+                            r = r, g = g, b = b,
+                        }
+                    end
+                end
+                blip = GetNextBlipInfoId(sprite)
+            end
+        end
+    end
+    return found
+end
+
+-- ════════════════════════════════════════════════════════════════════════════════════════════
 -- CLASS
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -98,6 +228,7 @@ function ThreeDMapClass:new()
     self.prev = {}
     self.visible = 0
     self.worldBlips = {}
+    self.serverBlips = {}
     self.gpsWaypoint = nil
     self.gpsToken = nil
     self.gpsPollAt = 0
@@ -201,6 +332,7 @@ local function publicPoint(point)
         showOn2d = point.showOn2d == true,
         spriteId = tonumber(point.spriteId),
         blipColour = tonumber(point.blipColour) or 3,
+        colourHex = type(point.colourHex) == 'string' and point.colourHex or nil,
         scale = tonumber(point.scale),
         shortRange = point.shortRange ~= false,
         shares = type(point.shares) == 'table' and point.shares or {},
@@ -230,6 +362,47 @@ function ThreeDMapClass:rebuild()
         label = 'ui.map3d.mine',
     }
     seenGroups.mine = true
+
+    -- the places other scripts put on the map, named like the GTA map legend
+    local server = self.serverBlips
+    if #server > 0 then
+        groups[#groups + 1] = { id = 'server', label = 'ui.map3d.server' }
+        seenGroups.server = true
+        local usedIds = {}
+        for i = 1, #server do
+            local blip = server[i]
+            local id = ('srv:%d:%d:%d'):format(blip.sprite, floor(blip.x), floor(blip.y))
+            while usedIds[id] do id = id .. '+' end
+            usedIds[id] = true
+            local hex = blip.r and ('#%02x%02x%02x'):format(floor(blip.r), floor(blip.g), floor(blip.b)) or nil
+            points[#points + 1] = {
+                id = id,
+                group = 'server',
+                category = 'ui.map3d.server',
+                label = BlipNames.lookup(blip.sprite, blip.r, blip.g, blip.b) or '',
+                sprite = tostring(blip.sprite),
+                owned = false,
+                x = blip.x,
+                y = blip.y,
+                z = blip.z,
+                spriteId = blip.sprite,
+                blipColour = (blip.colour and blip.colour >= 0 and blip.colour <= 85) and blip.colour or 0,
+                colourHex = hex,
+                scale = 0.8,
+                shortRange = false,
+            }
+        end
+        -- like the GTA map legend: by name, unnamed ones last
+        local first = #points - #server + 1
+        local slice = {}
+        for i = first, #points do slice[#slice + 1] = points[i] end
+        table.sort(slice, function(a, b)
+            if (a.label == '') ~= (b.label == '') then return a.label ~= '' end
+            if a.label ~= b.label then return a.label < b.label end
+            return a.spriteId < b.spriteId
+        end)
+        for i = 1, #slice do points[first + i - 1] = slice[i] end
+    end
 
     for i = 1, #categories do
         local group = categories[i]
@@ -745,6 +918,15 @@ function ThreeDMapClass:onOpen()
     self.open = true
     self.gpsToken = nil
     self:syncGpsWaypoint()
+    if mapCfg.serverBlips ~= false then
+        local ours = {}
+        for _, handle in pairs(self.worldBlips) do ours[handle] = true end
+        local ok, found = pcall(scanServerBlips, ours)
+        self.serverBlips = ok and found or {}
+        if not ok then LT.Debug.Error('reading the map blips failed: %s', tostring(found)) end
+    else
+        self.serverBlips = {}
+    end
     self:rebuild()
     self:publish()
     CreateThread(function()
@@ -852,6 +1034,7 @@ end
 
 local Map3d = ThreeDMapClass:new()
 _G.ThreeDMap = Map3d
+BlipNames.load()
 
 if mapCfg.enabled then
     Map3d:start()

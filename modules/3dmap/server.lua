@@ -527,9 +527,35 @@ end
 -- CALLBACKS
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
+-- The game asks on load and whenever the 3D map opens. A modded client could call these in a
+-- loop, and each call reads the database: one read per player per second, queued in order
+-- (results stay fresh), and a flood beyond a few seconds of queue is refused.
+local READ_GAP <const> = 1000
+local READ_QUEUE_MAX <const> = 5000
+local readSlots = {}
+
+--- @param src number
+--- @param key string
+--- @return boolean allowed
+local function waitReadSlot(src, key)
+    local id = key .. ':' .. tostring(src)
+    local now = GetGameTimer()
+    local slot = math.max(now, (readSlots[id] or (now - READ_GAP)) + READ_GAP)
+    if slot - now > READ_QUEUE_MAX then return false end
+    readSlots[id] = slot
+    if slot > now then Wait(slot - now) end
+    return true
+end
+
+AddEventHandler('playerDropped', function()
+    local src = tostring(source)
+    readSlots['fetch:' .. src] = nil
+    readSlots['globals:' .. src] = nil
+end)
+
 lib.callback.register(_e('3dmap:fetch'), function(src)
     local identifier = citizenId(src)
-    if not db or not identifier or not db:wait() then
+    if not db or not identifier or not waitReadSlot(src, 'fetch') or not db:wait() then
         return { markers = {}, requests = {} }
     end
     return db:fetch(identifier)
@@ -573,7 +599,7 @@ lib.callback.register(_e('3dmap:create'), function(src, data)
 end)
 
 lib.callback.register(_e('3dmap:fetchGlobals'), function(src)
-    if not db or not db:wait() then
+    if not db or not waitReadSlot(src, 'globals') or not db:wait() then
         return { globals = {}, isAdmin = false }
     end
     return {

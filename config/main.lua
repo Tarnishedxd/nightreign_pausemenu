@@ -40,7 +40,7 @@ return {
     --- Available: 'en', 'tr', 'hu', 'de', 'fr', 'es', 'it', 'pl', 'ro'
     --- Missing keys fall back to English; an unknown locale falls back to English with a console warning.
     --- @type 'en' | 'tr' | 'hu' | 'de' | 'fr' | 'es' | 'it' | 'pl' | 'ro' | string
-    locale = 'en',
+    locale = 'hu',
 
     --- @type string Currency symbol (e.g. USD, TRY, EUR etc.)
     currency = 'USD',

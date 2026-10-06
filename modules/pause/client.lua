@@ -648,7 +648,8 @@ function PauseClass:startSuppressLoop()
             local mapOwns = self.page == 'gtaMap' or nativeMapOpen()
             if settingsOwns then
                 local cam = self.cam
-                if cam and DoesCamExist(cam) and not IsCamRendering(cam) then
+                -- not while the portrait is handing over to the game camera (put in a vehicle)
+                if cam and DoesCamExist(cam) and not self.portraitSuspended and not IsCamRendering(cam) then
                     SetCamActive(cam, true)
                     RenderScriptCams(true, false, 0, true, true)
                 end

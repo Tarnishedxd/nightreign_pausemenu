@@ -140,44 +140,45 @@ return {
 
         --- What the character does while any pause screen is open (home, map, 3D map, settings).
         --- Ends the moment the menu closes. Other players see it too.
-        --- Skipped in a vehicle, while dead, ragdolled, falling, swimming, climbing, cuffed or
-        --- holding a weapon.
+        --- Skipped in a vehicle, while dead, ragdolled, falling, swimming, climbing, cuffed, holding
+        --- a weapon, or already in an emote / another script's animation.
         pauseAnim = {
 
             --- @type boolean
             enabled = true,
 
-            --- GTA scenario to play.
-            --- WORLD_HUMAN_SMOKING: takes out a cigarette, lights it, puts it in the mouth and
-            --- smokes; on close takes it out of the mouth and flicks it away.
-            --- Other ideas: WORLD_HUMAN_TOURIST_MAP (reads a map), WORLD_HUMAN_STAND_MOBILE
-            --- (looks at the phone), WORLD_HUMAN_DRINKING (coffee), WORLD_HUMAN_SMOKING_POT.
-            --- The game picks the male / female version and handles the prop itself.
-            --- Set to false to use the custom animation below instead.
+            --- GTA scenario to play instead of the animation below (the game picks the male /
+            --- female version and handles any prop), e.g. WORLD_HUMAN_STAND_IMPATIENT,
+            --- WORLD_HUMAN_TOURIST_MAP, WORLD_HUMAN_STAND_MOBILE.
+            --- false: play the animation below.
             --- @type string | false
-            scenario = 'WORLD_HUMAN_SMOKING',
+            scenario = false,
 
-            --- Custom animation, only used when `scenario = false`.
+            --- Animation: stands and waits, now and then checks the watch. Loops until the menu
+            --- closes.
             --- @type string
-            dict = 'amb@world_human_smoking@male@male_a@base',
+            dict = 'amb@world_human_stand_impatient@male@no_sign@idle_a',
 
             --- @type string
-            name = 'base',
+            name = 'idle_a',
+
+            --- Version for female characters. false: they play the one above.
+            --- @type { dict: string, name: string } | false
+            female = {
+                dict = 'amb@world_human_stand_impatient@female@no_sign@idle_a',
+                name = 'idle_a',
+            },
 
             --- TaskPlayAnim flag: 1 = loop (full body), 49 = loop (upper body only).
             --- @type integer
-            flag = 49,
+            flag = 1,
 
-            --- Prop held during the custom animation. Set to false for none.
+            --- Prop held during the animation. false: none.
             --- `bone`: 28422 = right hand, 60309 = left hand.
             --- `offset` / `rotation` fine-tune where it sits in the hand.
+            --- e.g. { model = 'prop_npc_phone_02', bone = 28422, offset = vec3(0.0, 0.0, 0.0), rotation = vec3(0.0, 0.0, 0.0) }
             --- @type { model: string, bone: integer, offset: vector3, rotation: vector3 } | false
-            prop = {
-                model = 'prop_cs_ciggy_01',
-                bone = 28422,
-                offset = vec3(0.0, 0.0, 0.0),
-                rotation = vec3(0.0, 0.0, 0.0),
-            },
+            prop = false,
 
         },
 

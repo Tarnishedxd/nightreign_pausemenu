@@ -60,7 +60,22 @@ BlipNames = { bySprite = {} }
 
 function BlipNames.load()
     local ok, decoded = pcall(json.decode, GetResourceKvpString(NAMES_KVP) or '')
-    if ok and type(decoded) == 'table' then BlipNames.bySprite = decoded end
+    if not ok or type(decoded) ~= 'table' then return end
+    -- keep only well-formed entries: { [sprite] = { { label, colour? }, ... } }
+    local clean = {}
+    for key, list in pairs(decoded) do
+        if type(key) == 'string' and type(list) == 'table' then
+            local entries = {}
+            for i = 1, #list do
+                local entry = list[i]
+                if type(entry) == 'table' and type(entry.label) == 'string' and entry.label ~= '' then
+                    entries[#entries + 1] = { label = entry.label, colour = type(entry.colour) == 'string' and entry.colour or nil }
+                end
+            end
+            if #entries > 0 then clean[key] = entries end
+        end
+    end
+    BlipNames.bySprite = clean
 end
 
 --- @param rows table[] parsed legend rows (label, blipSprite, colour, kind)
@@ -120,11 +135,15 @@ local function scanServerBlips(ours)
             local guard = 0
             while blip and blip ~= 0 and guard < 4096 and DoesBlipExist(blip) do
                 guard += 1
-                if blip ~= playerBlip and not ours[blip] and PLACE_TYPES[GetBlipInfoIdType(blip)]
-                    and GetBlipAlpha(blip) > 0
-                then
-                    local entity = GetBlipInfoIdType(blip) == 2 and GetBlipInfoIdEntityIndex(blip) or 0
-                    if entity == 0 or not IsPedAPlayer(entity) then
+                local kind = GetBlipInfoIdType(blip)
+                if blip ~= playerBlip and not ours[blip] and PLACE_TYPES[kind] and GetBlipAlpha(blip) > 0 then
+                    -- a ped / object blip counts while its entity is here and is not a player
+                    local keep = kind == 4
+                    if not keep then
+                        local entity = GetBlipInfoIdEntityIndex(blip)
+                        keep = entity ~= 0 and DoesEntityExist(entity) and not (kind == 2 and IsPedAPlayer(entity))
+                    end
+                    if keep then
                         local pos = GetBlipInfoIdCoord(blip)
                         local r, g, b = GetHudColour(GetBlipHudColour(blip))
                         found[#found + 1] = {

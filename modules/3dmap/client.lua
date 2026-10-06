@@ -58,7 +58,24 @@ end
 --- the icon name (radar_*) rather than the sprite id, so web/build/blips.json (id -> icon name,
 --- written by the UI build) links the two. Names are learned whenever the legend is read (the
 --- map page) and kept between sessions.
-BlipNames = { byIcon = {}, iconOf = {} }
+BlipNames = { byIcon = {}, iconOf = {}, own = {} }
+
+--- Same cleanup as the GTA map legend gives its labels.
+--- @param label string|nil
+--- @return string
+local function legendLabel(label)
+    return ((label or ''):gsub('%s+', ' '):match('^%s*(.-)%s*$')) or ''
+end
+
+--- Our own 2D blips (markers, globals) are in the legend too: their names must not end up on
+--- another script's blip that shares the icon.
+--- @param spriteId number
+--- @param label string|nil
+function BlipNames.markOwn(spriteId, label)
+    local icon = BlipNames.iconOf[floor(tonumber(spriteId) or -1)]
+    if icon then BlipNames.own[icon .. '\0' .. legendLabel(label)] = true end
+end
+
 local NAMES_KVP_OLD <const> = 'nightreign_pausemenu_blipNames'
 
 function BlipNames.load()
@@ -100,7 +117,9 @@ function BlipNames.learn(rows)
     for i = 1, #(rows or {}) do
         local row = rows[i]
         local icon = type(row.sprite) == 'string' and row.sprite:lower() or ''
-        if row.kind == 'blip' and icon:find('^radar_') and type(row.label) == 'string' and row.label ~= '' then
+        if row.kind == 'blip' and icon:find('^radar_') and type(row.label) == 'string' and row.label ~= ''
+            and not BlipNames.own[icon .. '\0' .. legendLabel(row.label)]
+        then
             local list = fresh[icon] or {}
             local colour = hexRgb(row.colour) and row.colour:lower() or nil
             local known = false
@@ -582,6 +601,7 @@ function ThreeDMapClass:clearWorldBlips()
         end
     end
     self.worldBlips = {}
+    BlipNames.own = {}
 end
 
 --- @param key string
@@ -599,6 +619,7 @@ function ThreeDMapClass:addWorldBlip(key, point)
     AddTextComponentSubstringPlayerName(point.label or '')
     EndTextCommandSetBlipName(blip)
     self.worldBlips[key] = blip
+    BlipNames.markOwn(spriteId, point.label)
 end
 
 function ThreeDMapClass:syncWorldBlips()

@@ -822,7 +822,11 @@ watch(listRef, (el) => {
 	listObserver.observe(el);
 	updateFade();
 });
-watch([points, groups, collapsed], () => nextTick(updateFade), { deep: true });
+// the list height changes with rows coming or going and groups folding; no need to walk every blip
+watch(
+	[() => points.value.length, () => groups.value.length, () => JSON.stringify(collapsed.value)],
+	() => nextTick(updateFade),
+);
 
 const hasUnnamed = computed(() => points.value.some((point) => point.group === "server" && !point.label));
 

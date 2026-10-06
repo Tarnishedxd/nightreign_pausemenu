@@ -265,12 +265,10 @@ function PauseClass:startPauseAnim()
     local gen <const> = self.pauseAnimGen
 
     if scenario then
-        -- The game plays the enter clip (e.g. takes out and lights a cigarette), loops the
-        -- scenario, picks the male or female clips and owns the prop; ClearPedTasks plays the
-        -- exit clip (e.g. takes it out of the mouth and flicks it away).
+        -- The game plays the enter clip, loops the scenario, picks the male or female clips and
+        -- owns any prop; ClearPedTasks plays the exit clip.
         self.pauseAnimClip = { scenario = scenario }
-        -- timeToLeave < 0 sets IdleForever: with 0 the game ends the scenario after its shortest
-        -- run (lights the cigarette, then puts it away after a few seconds).
+        -- timeToLeave < 0 sets IdleForever: with 0 the game ends the scenario after its shortest run.
         TaskStartScenarioInPlace(ped, scenario, -1, true)
         CreateThread(function()
             self:watchPauseAnim(gen, ped, function() return IsPedUsingScenario(ped, scenario) end)
@@ -278,7 +276,13 @@ function PauseClass:startPauseAnim()
         return
     end
 
-    local dict <const>, name <const> = pauseAnim.dict, pauseAnim.name
+    local dict, name = pauseAnim.dict, pauseAnim.name
+    local female = pauseAnim.female
+    if type(female) == 'table' and type(female.dict) == 'string' and type(female.name) == 'string'
+        and not IsPedMale(ped)
+    then
+        dict, name = female.dict, female.name
+    end
     self.pauseAnimClip = { dict = dict, name = name }
     CreateThread(function()
         local ok = pcall(lib.requestAnimDict, dict)

@@ -131,6 +131,41 @@ return {
 
         },
 
+        --- Animation the character plays while any pause screen is open (home, map, 3D map,
+        --- settings), with a map in hand. It stops and the map disappears as soon as the
+        --- menu closes. Other players see it too.
+        --- Skipped in a vehicle, while dead, ragdolled, falling, swimming, climbing or cuffed.
+        mapAnim = {
+
+            --- @type boolean
+            enabled = true,
+
+            --- Animation dictionary and clip.
+            --- GTA's own "reading a map" pose (standing, map open in both hands) instead:
+            ---     dict = 'amb@world_human_tourist_map@male@base', name = 'base', flag = 49,
+            --- @type string
+            dict = 'amb@world_human_bum_wash@male@low@idle_a',
+
+            --- @type string
+            name = 'idle_a',
+
+            --- TaskPlayAnim flag: 1 = loop (full body), 49 = loop (upper body only).
+            --- @type integer
+            flag = 1,
+
+            --- Prop held during the animation. Set to false for none.
+            --- `bone`: 28422 = right hand, 60309 = left hand.
+            --- `offset` / `rotation` fine-tune where it sits in the hand.
+            --- @type { model: string, bone: integer, offset: vector3, rotation: vector3 } | false
+            prop = {
+                model = 'prop_tourist_map_01',
+                bone = 28422,
+                offset = vec3(0.0, 0.0, 0.0),
+                rotation = vec3(0.0, 0.0, 0.0),
+            },
+
+        },
+
         --- Runs when the pause screen opens.
         --- @type fun()
         onPauseOpened = function()

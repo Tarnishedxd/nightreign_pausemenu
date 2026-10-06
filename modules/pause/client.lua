@@ -1,5 +1,6 @@
 local cfg <const> = require 'config.main'
 local portrait <const> = cfg.pause.portrait
+local mapAnim <const> = cfg.pause.mapAnim or {}
 local idleMale <const> = 'anim@heists@heist_corona@team_idles@male_a'
 local idleFemale <const> = 'anim@heists@heist_corona@team_idles@female_a'
 local portraitModeKvp <const> = 'portraitMode'
@@ -114,10 +115,16 @@ function PauseClass:new()
     self.restoreRadar = false
     self.hudHidden = false
     self.waisHidden = false
+    self.mapAnimOn = false
+    self.mapAnimGen = 0
+    self.mapAnimPed = nil
+    self.mapProp = nil
     return self
 end
 
 function PauseClass:playIdle(ped)
+    -- The map animation is the pose while it runs; the portrait idle would replace it.
+    if self.mapAnimOn then return end
     local dict = IsPedMale(ped) and idleMale or idleFemale
     lib.requestAnimDict(dict)
     TaskPlayAnim(ped, dict, 'idle', 2.0, 2.0, -1, 1, 0.0, false, false, false)
@@ -133,6 +140,121 @@ function PauseClass:stopIdle()
         StopAnimTask(ped, dict, 'idle', 1.0)
     end
     RemoveAnimDict(dict)
+end
+
+-- ════════════════════════════════════════════════════════════════════════════════════════════
+-- MAP ANIMATION (the character holds a map while any pause screen is open)
+-- ════════════════════════════════════════════════════════════════════════════════════════════
+
+--- States where taking over the ped with an animation would break what it is doing.
+--- @param ped number
+--- @return boolean
+local function canPlayMapAnim(ped)
+    if not ped or ped == 0 or not DoesEntityExist(ped) then return false end
+    if IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedFalling(ped) or IsPedSwimming(ped) then return false end
+    if IsPedInAnyVehicle(ped, true) or IsPedGettingIntoAVehicle(ped) or IsPedClimbing(ped) then return false end
+    if IsPedCuffed(ped) or IsPedUsingAnyScenario(ped) or IsPedInParachuteFreeFall(ped) then return false end
+    if GetPedParachuteState(ped) > 0 then return false end
+    return true
+end
+
+--- @param ped number
+--- @param prop table
+--- @return number|nil
+local function createMapProp(ped, prop)
+    local ok, model = pcall(lib.requestModel, prop.model)
+    if not ok or not model then
+        LT.Debug.Error('config.pause.mapAnim.prop: cannot load model %s', tostring(prop.model))
+        return nil
+    end
+    local coords = GetEntityCoords(ped)
+    -- Networked so other players see it; servers that block client entities still get a local one.
+    local obj = CreateObject(model, coords.x, coords.y, coords.z + 0.2, true, true, false)
+    if not obj or obj == 0 then
+        obj = CreateObject(model, coords.x, coords.y, coords.z + 0.2, false, false, false)
+    end
+    SetModelAsNoLongerNeeded(model)
+    if not obj or obj == 0 then return nil end
+    local offset = prop.offset or vector3(0.0, 0.0, 0.0)
+    local rotation = prop.rotation or vector3(0.0, 0.0, 0.0)
+    SetEntityCollision(obj, false, false)
+    AttachEntityToEntity(obj, ped, GetPedBoneIndex(ped, prop.bone or 28422),
+        offset.x, offset.y, offset.z, rotation.x, rotation.y, rotation.z, true, true, false, true, 1, true)
+    return obj
+end
+
+--- @param obj number|nil
+local function deleteMapProp(obj)
+    if not obj or not DoesEntityExist(obj) then return end
+    DetachEntity(obj, true, false)
+    SetEntityAsMissionEntity(obj, true, true)
+    DeleteEntity(obj)
+end
+
+function PauseClass:startMapAnim()
+    if mapAnim.enabled ~= true or self.mapAnimOn then return end
+    if type(mapAnim.dict) ~= 'string' or type(mapAnim.name) ~= 'string' then return end
+    -- Character select / spawn screens animate the ped themselves.
+    if not LT.Framework.IsPlayerLoaded() then return end
+    local ped <const> = cache.ped
+    if not canPlayMapAnim(ped) then return end
+    self.mapAnimOn = true
+    self.mapAnimGen = self.mapAnimGen + 1
+    self.mapAnimPed = ped
+    local gen <const> = self.mapAnimGen
+    local dict <const>, name <const> = mapAnim.dict, mapAnim.name
+
+    CreateThread(function()
+        local ok = pcall(lib.requestAnimDict, dict)
+        if not ok then
+            LT.Debug.Error('config.pause.mapAnim: cannot load animation dictionary %s', dict)
+            if self.mapAnimGen == gen then self:stopMapAnim() end
+            return
+        end
+        if self.mapAnimGen ~= gen then return end
+
+        if type(mapAnim.prop) == 'table' and mapAnim.prop.model then
+            local obj = createMapProp(ped, mapAnim.prop)
+            -- The menu may have closed while the model loaded.
+            if self.mapAnimGen ~= gen then
+                deleteMapProp(obj)
+                return
+            end
+            self.mapProp = obj
+        end
+
+        TaskPlayAnim(ped, dict, name, 2.0, 2.0, -1, tonumber(mapAnim.flag) or 1, 0.0, false, false, false)
+
+        -- Let go when something else takes over the ped (death, ragdoll, a vehicle,
+        -- another script's animation) instead of leaving the prop in its hand.
+        while self.mapAnimGen == gen do
+            Wait(500)
+            if self.mapAnimGen ~= gen then break end
+            if cache.ped ~= ped or IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedInAnyVehicle(ped, true)
+                or not IsEntityPlayingAnim(ped, dict, name, 3)
+            then
+                self:stopMapAnim()
+                break
+            end
+        end
+    end)
+end
+
+function PauseClass:stopMapAnim()
+    if not self.mapAnimOn then return end
+    self.mapAnimOn = false
+    self.mapAnimGen = self.mapAnimGen + 1
+    local ped = self.mapAnimPed
+    self.mapAnimPed = nil
+    local dict, name = mapAnim.dict, mapAnim.name
+    -- Only stop our own clip: another script may have put the ped into something else meanwhile.
+    if ped and DoesEntityExist(ped) and IsEntityPlayingAnim(ped, dict, name, 3) then
+        StopAnimTask(ped, dict, name, 2.0)
+    end
+    local obj = self.mapProp
+    self.mapProp = nil
+    deleteMapProp(obj)
+    if type(dict) == 'string' then RemoveAnimDict(dict) end
 end
 
 --- @param coords vector3
@@ -403,6 +525,18 @@ function PauseClass:setHudHidden(hidden)
     end
 end
 
+--- Everything that lasts exactly as long as a pause screen is up (home, maps, settings,
+--- vanilla pause): the hidden HUD and the map animation.
+--- @param paused boolean
+function PauseClass:setPaused(paused)
+    self:setHudHidden(paused)
+    if paused then
+        self:startMapAnim()
+    else
+        self:stopMapAnim()
+    end
+end
+
 --- @param name 'onPauseOpened'|'onPauseClosed'
 function PauseClass:runHook(name)
     local fn = cfg.pause[name]
@@ -461,7 +595,7 @@ function PauseClass:openHome()
     self.quitConfirm = false
     self:setPage('pause')
     self:showNui()
-    self:setHudHidden(true)
+    self:setPaused(true)
     self:startSuppressLoop()
     self:killNativePause()
     self:startPortrait()
@@ -500,12 +634,12 @@ function PauseClass:openVanilla()
     self.settingsOpening = false
     self.allowVanilla = true
     self:hideNui()
-    -- The vanilla pause is full screen too: keep the HUD hidden until it closes.
-    self:setHudHidden(true)
+    -- The vanilla pause counts as paused too: keep the HUD hidden and the map out until it closes.
+    self:setPaused(true)
     self:runHook('onPauseClosed')
     local function vanillaDone()
         if not self.open then
-            self:setHudHidden(false)
+            self:setPaused(false)
         end
     end
     CreateThread(function()
@@ -582,7 +716,7 @@ function PauseClass:close()
         self.quitConfirm = false
         self.suppressThread = false
         self:hideNui()
-        self:setHudHidden(false)
+        self:setPaused(false)
         self:runHook('onPauseClosed')
         return
     end
@@ -592,7 +726,7 @@ function PauseClass:close()
     self:stopPortrait(true)
     self:killNativePause()
     self:hideNui()
-    self:setHudHidden(false)
+    self:setPaused(false)
     self:runHook('onPauseClosed')
 end
 
@@ -616,7 +750,7 @@ function PauseClass:onMapClosed()
     self.quitConfirm = false
     self:setPage('pause')
     self:showNui()
-    self:setHudHidden(true)
+    self:setPaused(true)
     self:startSuppressLoop()
     self:killNativePause()
     self:startPortrait()
@@ -839,8 +973,6 @@ LT.Hooks.Stop(function()
         Pause.restoreRadar = false
         DisplayRadar(true)
     end
-    -- Give the HUD back if the menu was up when the resource stopped.
-    if Pause.hudHidden then
-        Pause:setHudHidden(false)
-    end
+    -- Give the HUD back and drop the map if the menu was up when the resource stopped.
+    Pause:setPaused(false)
 end)

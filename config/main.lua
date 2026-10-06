@@ -135,22 +135,24 @@ return {
         --- Ends the moment the menu closes. Other players see it too.
         --- Skipped in a vehicle, while dead, ragdolled, falling, swimming, climbing, cuffed or
         --- holding a weapon.
-        mapAnim = {
+        pauseAnim = {
 
             --- @type boolean
             enabled = true,
 
-            --- GTA scenario to play. WORLD_HUMAN_TOURIST_MAP: the character stands, unfolds a
-            --- map, reads it, traces routes and points with a hand, looks up and around, and
-            --- folds it away on close. The game picks the male / female version and handles
-            --- the map prop itself.
+            --- GTA scenario to play.
+            --- WORLD_HUMAN_SMOKING: takes out a cigarette, lights it, puts it in the mouth and
+            --- smokes; on close takes it out of the mouth and flicks it away.
+            --- Other ideas: WORLD_HUMAN_TOURIST_MAP (reads a map), WORLD_HUMAN_STAND_MOBILE
+            --- (looks at the phone), WORLD_HUMAN_DRINKING (coffee), WORLD_HUMAN_SMOKING_POT.
+            --- The game picks the male / female version and handles the prop itself.
             --- Set to false to use the custom animation below instead.
             --- @type string | false
-            scenario = 'WORLD_HUMAN_TOURIST_MAP',
+            scenario = 'WORLD_HUMAN_SMOKING',
 
             --- Custom animation, only used when `scenario = false`.
             --- @type string
-            dict = 'amb@world_human_tourist_map@male@base',
+            dict = 'amb@world_human_smoking@male@male_a@base',
 
             --- @type string
             name = 'base',
@@ -164,7 +166,7 @@ return {
             --- `offset` / `rotation` fine-tune where it sits in the hand.
             --- @type { model: string, bone: integer, offset: vector3, rotation: vector3 } | false
             prop = {
-                model = 'prop_tourist_map_01',
+                model = 'prop_cs_ciggy_01',
                 bone = 28422,
                 offset = vec3(0.0, 0.0, 0.0),
                 rotation = vec3(0.0, 0.0, 0.0),

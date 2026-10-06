@@ -1,6 +1,6 @@
 local cfg <const> = require 'config.main'
 local portrait <const> = cfg.pause.portrait
-local mapAnim <const> = cfg.pause.mapAnim or {}
+local pauseAnim <const> = cfg.pause.pauseAnim or {}
 local idleMale <const> = 'anim@heists@heist_corona@team_idles@male_a'
 local idleFemale <const> = 'anim@heists@heist_corona@team_idles@female_a'
 local portraitModeKvp <const> = 'portraitMode'
@@ -115,17 +115,17 @@ function PauseClass:new()
     self.restoreRadar = false
     self.hudHidden = false
     self.waisHidden = false
-    self.mapAnimOn = false
-    self.mapAnimGen = 0
-    self.mapAnimPed = nil
-    self.mapAnimClip = nil
-    self.mapProp = nil
+    self.pauseAnimOn = false
+    self.pauseAnimGen = 0
+    self.pauseAnimPed = nil
+    self.pauseAnimClip = nil
+    self.pauseProp = nil
     return self
 end
 
 function PauseClass:playIdle(ped)
-    -- The map animation is the pose while it runs; the portrait idle would replace it.
-    if self.mapAnimOn then return end
+    -- The pause animation is the pose while it runs; the portrait idle would replace it.
+    if self.pauseAnimOn then return end
     local dict = IsPedMale(ped) and idleMale or idleFemale
     lib.requestAnimDict(dict)
     TaskPlayAnim(ped, dict, 'idle', 2.0, 2.0, -1, 1, 0.0, false, false, false)
@@ -144,13 +144,13 @@ function PauseClass:stopIdle()
 end
 
 -- ════════════════════════════════════════════════════════════════════════════════════════════
--- MAP ANIMATION (the character reads a map while any pause screen is open)
+-- PAUSE ANIMATION (what the character does while any pause screen is open)
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
 --- States where taking over the ped with an animation would break what it is doing.
 --- @param ped number
 --- @return boolean
-local function canPlayMapAnim(ped)
+local function canPlayPauseAnim(ped)
     if not ped or ped == 0 or not DoesEntityExist(ped) then return false end
     if IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedFalling(ped) or IsPedSwimming(ped) then return false end
     if IsPedInAnyVehicle(ped, true) or IsPedGettingIntoAVehicle(ped) or IsPedClimbing(ped) then return false end
@@ -162,8 +162,8 @@ local function canPlayMapAnim(ped)
 end
 
 --- @return string|nil
-local function mapScenario()
-    local name = mapAnim.scenario
+local function pauseScenario()
+    local name = pauseAnim.scenario
     if type(name) == 'string' and name ~= '' then return name end
     return nil
 end
@@ -171,10 +171,10 @@ end
 --- @param ped number
 --- @param prop table
 --- @return number|nil
-local function createMapProp(ped, prop)
+local function createPauseProp(ped, prop)
     local ok, model = pcall(lib.requestModel, prop.model)
     if not ok or not model then
-        LT.Debug.Error('config.pause.mapAnim.prop: cannot load model %s', tostring(prop.model))
+        LT.Debug.Error('config.pause.pauseAnim.prop: cannot load model %s', tostring(prop.model))
         return nil
     end
     local coords = GetEntityCoords(ped)
@@ -194,7 +194,7 @@ local function createMapProp(ped, prop)
 end
 
 --- @param obj number|nil
-local function deleteMapProp(obj)
+local function deletePauseProp(obj)
     if not obj or not DoesEntityExist(obj) then return end
     DetachEntity(obj, true, false)
     SetEntityAsMissionEntity(obj, true, true)
@@ -202,79 +202,80 @@ local function deleteMapProp(obj)
 end
 
 --- Let go when something else takes over the ped (death, ragdoll, a vehicle, another
---- script's task) instead of leaving it holding the map.
+--- script's task) instead of leaving it holding the prop.
 --- @param gen integer
 --- @param ped number
 --- @param stillOurs fun(): boolean
-function PauseClass:watchMapAnim(gen, ped, stillOurs)
-    while self.mapAnimGen == gen do
+function PauseClass:watchPauseAnim(gen, ped, stillOurs)
+    while self.pauseAnimGen == gen do
         Wait(500)
-        if self.mapAnimGen ~= gen then break end
+        if self.pauseAnimGen ~= gen then break end
         if cache.ped ~= ped or IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedInAnyVehicle(ped, true) or not stillOurs() then
-            self:stopMapAnim()
+            self:stopPauseAnim()
             break
         end
     end
 end
 
-function PauseClass:startMapAnim()
-    if mapAnim.enabled ~= true or self.mapAnimOn then return end
-    local scenario <const> = mapScenario()
-    if not scenario and (type(mapAnim.dict) ~= 'string' or type(mapAnim.name) ~= 'string') then return end
+function PauseClass:startPauseAnim()
+    if pauseAnim.enabled ~= true or self.pauseAnimOn then return end
+    local scenario <const> = pauseScenario()
+    if not scenario and (type(pauseAnim.dict) ~= 'string' or type(pauseAnim.name) ~= 'string') then return end
     -- Character select / spawn screens animate the ped themselves.
     if not LT.Framework.IsPlayerLoaded() then return end
     local ped <const> = cache.ped
-    if not canPlayMapAnim(ped) then return end
-    self.mapAnimOn = true
-    self.mapAnimGen = self.mapAnimGen + 1
-    self.mapAnimPed = ped
-    local gen <const> = self.mapAnimGen
+    if not canPlayPauseAnim(ped) then return end
+    self.pauseAnimOn = true
+    self.pauseAnimGen = self.pauseAnimGen + 1
+    self.pauseAnimPed = ped
+    local gen <const> = self.pauseAnimGen
 
     if scenario then
-        -- The game unfolds the map, cycles its reading / pointing / looking-around idles,
-        -- picks the male or female clips and owns the prop; ClearPedTasks folds it away.
-        self.mapAnimClip = { scenario = scenario }
+        -- The game plays the enter clip (e.g. takes out and lights a cigarette), loops the
+        -- scenario, picks the male or female clips and owns the prop; ClearPedTasks plays the
+        -- exit clip (e.g. takes it out of the mouth and flicks it away).
+        self.pauseAnimClip = { scenario = scenario }
         TaskStartScenarioInPlace(ped, scenario, 0, true)
         CreateThread(function()
-            self:watchMapAnim(gen, ped, function() return IsPedUsingScenario(ped, scenario) end)
+            self:watchPauseAnim(gen, ped, function() return IsPedUsingScenario(ped, scenario) end)
         end)
         return
     end
 
-    local dict <const>, name <const> = mapAnim.dict, mapAnim.name
-    self.mapAnimClip = { dict = dict, name = name }
+    local dict <const>, name <const> = pauseAnim.dict, pauseAnim.name
+    self.pauseAnimClip = { dict = dict, name = name }
     CreateThread(function()
         local ok = pcall(lib.requestAnimDict, dict)
         if not ok then
-            LT.Debug.Error('config.pause.mapAnim: cannot load animation dictionary %s', dict)
-            if self.mapAnimGen == gen then self:stopMapAnim() end
+            LT.Debug.Error('config.pause.pauseAnim: cannot load animation dictionary %s', dict)
+            if self.pauseAnimGen == gen then self:stopPauseAnim() end
             return
         end
-        if self.mapAnimGen ~= gen then return end
+        if self.pauseAnimGen ~= gen then return end
 
-        if type(mapAnim.prop) == 'table' and mapAnim.prop.model then
-            local obj = createMapProp(ped, mapAnim.prop)
+        if type(pauseAnim.prop) == 'table' and pauseAnim.prop.model then
+            local obj = createPauseProp(ped, pauseAnim.prop)
             -- The menu may have closed while the model loaded.
-            if self.mapAnimGen ~= gen then
-                deleteMapProp(obj)
+            if self.pauseAnimGen ~= gen then
+                deletePauseProp(obj)
                 return
             end
-            self.mapProp = obj
+            self.pauseProp = obj
         end
 
-        TaskPlayAnim(ped, dict, name, 2.0, 2.0, -1, tonumber(mapAnim.flag) or 1, 0.0, false, false, false)
-        self:watchMapAnim(gen, ped, function() return IsEntityPlayingAnim(ped, dict, name, 3) end)
+        TaskPlayAnim(ped, dict, name, 2.0, 2.0, -1, tonumber(pauseAnim.flag) or 1, 0.0, false, false, false)
+        self:watchPauseAnim(gen, ped, function() return IsEntityPlayingAnim(ped, dict, name, 3) end)
     end)
 end
 
-function PauseClass:stopMapAnim()
-    if not self.mapAnimOn then return end
-    self.mapAnimOn = false
-    self.mapAnimGen = self.mapAnimGen + 1
-    local ped = self.mapAnimPed
-    local clip = self.mapAnimClip or {}
-    self.mapAnimPed = nil
-    self.mapAnimClip = nil
+function PauseClass:stopPauseAnim()
+    if not self.pauseAnimOn then return end
+    self.pauseAnimOn = false
+    self.pauseAnimGen = self.pauseAnimGen + 1
+    local ped = self.pauseAnimPed
+    local clip = self.pauseAnimClip or {}
+    self.pauseAnimPed = nil
+    self.pauseAnimClip = nil
     local alive = ped and DoesEntityExist(ped)
     -- Only end our own task: another script may have put the ped into something else meanwhile.
     if clip.scenario then
@@ -287,9 +288,9 @@ function PauseClass:stopMapAnim()
         end
         RemoveAnimDict(clip.dict)
     end
-    local obj = self.mapProp
-    self.mapProp = nil
-    deleteMapProp(obj)
+    local obj = self.pauseProp
+    self.pauseProp = nil
+    deletePauseProp(obj)
 end
 
 --- @param coords vector3
@@ -561,14 +562,14 @@ function PauseClass:setHudHidden(hidden)
 end
 
 --- Everything that lasts exactly as long as a pause screen is up (home, maps, settings,
---- vanilla pause): the hidden HUD and the map animation.
+--- vanilla pause): the hidden HUD and the pause animation.
 --- @param paused boolean
 function PauseClass:setPaused(paused)
     self:setHudHidden(paused)
     if paused then
-        self:startMapAnim()
+        self:startPauseAnim()
     else
-        self:stopMapAnim()
+        self:stopPauseAnim()
     end
 end
 
@@ -669,7 +670,7 @@ function PauseClass:openVanilla()
     self.settingsOpening = false
     self.allowVanilla = true
     self:hideNui()
-    -- The vanilla pause counts as paused too: keep the HUD hidden and the map out until it closes.
+    -- The vanilla pause counts as paused too: keep the HUD hidden and the animation on until it closes.
     self:setPaused(true)
     self:runHook('onPauseClosed')
     local function vanillaDone()
@@ -1008,6 +1009,6 @@ LT.Hooks.Stop(function()
         Pause.restoreRadar = false
         DisplayRadar(true)
     end
-    -- Give the HUD back and drop the map if the menu was up when the resource stopped.
+    -- Give the HUD back and end the animation if the menu was up when the resource stopped.
     Pause:setPaused(false)
 end)

@@ -5,6 +5,8 @@ local idleMale <const> = 'anim@heists@heist_corona@team_idles@male_a'
 local idleFemale <const> = 'anim@heists@heist_corona@team_idles@female_a'
 local portraitModeKvp <const> = 'portraitMode'
 local waisHud <const> = 'wais-hudv6'
+-- A camera move longer than this is a teleport / respawn: cut instead of easing across the map.
+local SNAP_DISTANCE <const> = 8.0
 
 --- @return boolean
 local function isPortraitEnabled()
@@ -120,6 +122,7 @@ function PauseClass:new()
     self.pauseAnimPed = nil
     self.pauseAnimClip = nil
     self.pauseProp = nil
+    self.portraitSuspended = false
     return self
 end
 
@@ -155,6 +158,8 @@ local function canPlayPauseAnim(ped)
     if IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedFalling(ped) or IsPedSwimming(ped) then return false end
     if IsPedInAnyVehicle(ped, true) or IsPedGettingIntoAVehicle(ped) or IsPedClimbing(ped) then return false end
     if IsPedCuffed(ped) or IsPedUsingAnyScenario(ped) or IsPedInParachuteFreeFall(ped) then return false end
+    -- carried, escorted, taken hostage: another player's script owns the ped
+    if IsEntityAttached(ped) then return false end
     if GetPedParachuteState(ped) > 0 then return false end
     -- A scenario puts the weapon away, which inventories see as an unequip.
     if IsPedArmed(ped, 7) then return false end
@@ -201,8 +206,8 @@ local function deletePauseProp(obj)
     DeleteEntity(obj)
 end
 
---- Let go when something else takes over the ped (death, ragdoll, a vehicle, another
---- script's task) instead of leaving it holding the prop.
+--- Let go when something else takes over the ped (death, ragdoll, a vehicle, being carried,
+--- another script's task) instead of leaving it holding the prop.
 --- @param gen integer
 --- @param ped number
 --- @param stillOurs fun(): boolean
@@ -210,11 +215,25 @@ function PauseClass:watchPauseAnim(gen, ped, stillOurs)
     while self.pauseAnimGen == gen do
         Wait(500)
         if self.pauseAnimGen ~= gen then break end
-        if cache.ped ~= ped or IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedInAnyVehicle(ped, true) or not stillOurs() then
-            self:stopPauseAnim()
+        if cache.ped ~= ped or IsEntityDead(ped) or IsPedRagdoll(ped) or IsPedInAnyVehicle(ped, true)
+            or IsEntityAttached(ped) or not stillOurs()
+        then
+            self:releasePauseAnim()
             break
         end
     end
+end
+
+--- Something else owns the ped now: stop holding the camera and drop our own prop, but leave
+--- the ped's tasks alone (ending them could cancel e.g. the carry animation). Whatever is still
+--- ours is ended when the menu closes.
+function PauseClass:releasePauseAnim()
+    if not self.pauseAnimOn then return end
+    self.pauseAnimOn = false
+    self.pauseAnimGen = self.pauseAnimGen + 1
+    local obj = self.pauseProp
+    self.pauseProp = nil
+    deletePauseProp(obj)
 end
 
 function PauseClass:startPauseAnim()
@@ -271,7 +290,7 @@ function PauseClass:startPauseAnim()
 end
 
 function PauseClass:stopPauseAnim()
-    if not self.pauseAnimOn then return end
+    if not self.pauseAnimOn and not self.pauseAnimClip then return end
     self.pauseAnimOn = false
     self.pauseAnimGen = self.pauseAnimGen + 1
     local ped = self.pauseAnimPed
@@ -321,50 +340,6 @@ local function destroyCam(cam)
     end
 end
 
---- @param coords vector3
---- @param look vector3
-function PauseClass:blendPortrait(coords, look)
-    local currentCam = self.cam
-    if not currentCam or not DoesCamExist(currentCam) then
-        local cam = createNewCamera(coords, look, true)
-        if not cam then return end
-        self.cam = cam
-        self.anchorPos = coords
-        self.anchorLook = look
-        return
-    end
-
-    local newCam = createNewCamera(coords, look, false)
-    if not newCam then return end
-
-    local duration <const> = portrait.followBlendMs
-    local gen <const> = self.portraitGen
-    local retired <const> = currentCam
-    if self.retiredCam and self.retiredCam ~= retired then
-        destroyCam(self.retiredCam)
-    end
-    self.retiredCam = retired
-    self.cam = newCam
-    self.anchorPos = coords
-    self.anchorLook = look
-    self.blending = true
-    SetCamActiveWithInterp(newCam, retired, duration, 1, 1)
-
-    CreateThread(function()
-        Wait(duration)
-        if self.portraitGen ~= gen then return end
-        if self.cam ~= retired then
-            destroyCam(retired)
-        end
-        if self.retiredCam == retired then
-            self.retiredCam = nil
-        end
-        if self.cam == newCam then
-            self.blending = false
-        end
-    end)
-end
-
 function PauseClass:startPortrait()
     if not isPortraitEnabled() then return end
     local ped <const> = cache.ped
@@ -378,7 +353,7 @@ function PauseClass:startPortrait()
     if not self.cam or not DoesCamExist(self.cam) then
         self.cam = createNewCamera(coords, look, true)
     else
-        -- reopened while the last camera was still blending out: it does not follow, so re-aim it
+        -- reopened while the last camera was still blending out: re-aim it at the new pose
         SetCamCoord(self.cam, coords.x, coords.y, coords.z)
         PointCamAtCoord(self.cam, look.x, look.y, look.z)
         SetCamActive(self.cam, true)
@@ -391,27 +366,91 @@ function PauseClass:startPortrait()
     self.anchorPos = coords
     self.anchorLook = look
     RenderScriptCams(true, true, portrait.blendInMs, true, true)
-    self:playIdle(ped)
-    -- The camera holds the pose it opened with. Following the ped made it drift and turn on its
-    -- own whenever an animation moved or turned the character.
-    if portrait.follow ~= true then return end
-    local gen <const> = self.portraitGen
+    -- the idle pose only when nothing else (pause animation, carry, cuffs...) owns the ped
+    if canPlayPauseAnim(ped) then self:playIdle(ped) end
+    if portrait.follow == false then return end
+    self:followPortrait(self.portraitGen, side)
+end
+
+--- The camera holds still while the pause animation plays (its clips shuffle and turn the
+--- character). Otherwise it eases after the character: carried, pushed, ragdolled. Teleports and
+--- respawns cut straight to the new place, and a vehicle hands over to the game camera.
+--- @param gen integer
+--- @param side integer
+function PauseClass:followPortrait(gen, side)
+    local target, targetLook = nil, nil
+    local snap = false
+    local speed <const> = 3000.0 / math.max(100.0, tonumber(portrait.followBlendMs) or 700.0)
+    local deadzone <const> = tonumber(portrait.followMove) or 0.45
+
+    -- where the camera should be: needs a shape test, so a few times a second
     CreateThread(function()
         while self.open and self.portraitGen == gen do
-            local currentPed = cache.ped
-            if currentPed and currentPed ~= 0 and not IsPedInAnyVehicle(currentPed, false) and not self.blending then
-                local anchorPos = self.anchorPos
-                local anchorLook = self.anchorLook
-                if anchorPos and anchorLook then
-                    local newCamPos, newLook = portraitPose(currentPed, side)
-                    local difference = #(newCamPos - anchorPos) + #(newLook - anchorLook)
-                    if difference > portrait.followMove then
-                        self:blendPortrait(newCamPos, newLook)
-                    end
+            local ped = cache.ped
+            if ped and ped ~= 0 and DoesEntityExist(ped) then
+                if IsPedInAnyVehicle(ped, false) then
+                    self:suspendPortrait()
+                    return
+                end
+                local camPos, look = portraitPose(ped, side)
+                local from = target or self.anchorPos
+                local drift = from and #(camPos - from) or 0.0
+                if drift > SNAP_DISTANCE then
+                    target, targetLook, snap = camPos, look, true
+                elseif not self.pauseAnimOn and (target or drift > deadzone) then
+                    target, targetLook = camPos, look
                 end
             end
-            Wait(200)
+            Wait(150)
         end
+    end)
+
+    -- ease the camera toward it, every frame while it is moving
+    CreateThread(function()
+        while self.open and self.portraitGen == gen do
+            local cam = self.cam
+            local pos, lookAt = self.anchorPos, self.anchorLook
+            if target and targetLook and cam and DoesCamExist(cam) and pos and lookAt then
+                if snap then
+                    pos, lookAt, snap = target, targetLook, false
+                else
+                    local k = 1.0 - math.exp(-GetFrameTime() * speed)
+                    pos = pos + (target - pos) * k
+                    lookAt = lookAt + (targetLook - lookAt) * k
+                end
+                SetCamCoord(cam, pos.x, pos.y, pos.z)
+                PointCamAtCoord(cam, lookAt.x, lookAt.y, lookAt.z)
+                self.anchorPos, self.anchorLook = pos, lookAt
+                if #(target - pos) < 0.02 and #(targetLook - lookAt) < 0.02 then
+                    target, targetLook = nil, nil
+                end
+                Wait(0)
+            else
+                Wait(100)
+            end
+        end
+    end)
+end
+
+--- Put in a vehicle while paused (arrested, kidnapped): blend back to the game camera, which
+--- follows the vehicle, and bring the portrait back once the character is out again.
+function PauseClass:suspendPortrait()
+    if self.portraitSuspended then return end
+    self.portraitSuspended = true
+    self:stopPortrait(true)
+    CreateThread(function()
+        while self.open and self.portraitSuspended do
+            Wait(250)
+            local ped = cache.ped
+            local onPage = self.page == 'pause' or self.page == 'settings'
+            if onPage and ped and ped ~= 0 and not IsPedInAnyVehicle(ped, false)
+                and not (Camera and Camera:isOpen()) and not nativeMapOpen()
+            then
+                self.portraitSuspended = false
+                self:startPortrait()
+            end
+        end
+        self.portraitSuspended = false
     end)
 end
 

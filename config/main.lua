@@ -121,16 +121,18 @@ return {
             --- @type number
             blendOutMs = 750,
 
-            --- Let the camera follow the character when it moves or turns. Off: the camera stays
-            --- exactly where it opened.
+            --- Follow the character when something moves it while the menu is open (carried,
+            --- pushed, ragdolled, teleported). The camera always holds still while the pause
+            --- animation plays, and hands over to the game camera if the character is put in a
+            --- vehicle. false: the camera never moves after opening.
             --- @type boolean
-            follow = false,
+            follow = true,
 
-            --- Metres of camera + look drift before a follow blend (only with follow = true).
+            --- Metres the character must move before the camera starts following.
             --- @type number
             followMove = 0.45,
 
-            --- Portrait → updated portrait blend (ms, only with follow = true).
+            --- Roughly how long the camera takes to catch up when following (ms).
             --- @type number
             followBlendMs = 700,
 

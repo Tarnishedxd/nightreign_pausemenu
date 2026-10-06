@@ -106,6 +106,7 @@ declare global {
   const useModel: typeof import('vue').useModel
   const usePreferences: typeof import('./src/composables/usePreferences').usePreferences
   const useScaler: typeof import('./src/composables/useScaler').useScaler
+  const useSettingsCache: typeof import('./src/composables/useSettingsCache').useSettingsCache
   const useSettingsNavigation: typeof import('./src/composables/useSettingsNavigation').useSettingsNavigation
   const useSettingsStore: typeof import('./src/stores/settings').useSettingsStore
   const useSlots: typeof import('vue').useSlots
@@ -243,6 +244,7 @@ declare module 'vue' {
     readonly useModel: UnwrapRef<typeof import('vue')['useModel']>
     readonly usePreferences: UnwrapRef<typeof import('./src/composables/usePreferences')['usePreferences']>
     readonly useScaler: UnwrapRef<typeof import('./src/composables/useScaler')['useScaler']>
+    readonly useSettingsCache: UnwrapRef<typeof import('./src/composables/useSettingsCache')['useSettingsCache']>
     readonly useSettingsNavigation: UnwrapRef<typeof import('./src/composables/useSettingsNavigation')['useSettingsNavigation']>
     readonly useSettingsStore: UnwrapRef<typeof import('./src/stores/settings')['useSettingsStore']>
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>

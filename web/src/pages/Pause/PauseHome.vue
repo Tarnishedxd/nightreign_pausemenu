@@ -111,6 +111,11 @@
 <script setup lang="ts">
 import { Play, Map as MapIcon, Box, Settings, LogOut, ChartColumn } from "@lucide/vue";
 
+const props = defineProps<{
+	/** Rendered once, invisibly, at start-up so the first real open is fast: no input. */
+	prewarm?: boolean;
+}>();
+
 const store = useMainStore();
 const { begin, accept } = useStats();
 const { quitConfirm, player } = storeToRefs(store);
@@ -282,6 +287,7 @@ watch(
 );
 
 onMounted(() => {
+	if (props.prewarm) return;
 	window.addEventListener("keydown", onKeyDown);
 });
 onUnmounted(() => {

@@ -11,22 +11,29 @@
 		<p v-if="filtered.length === 0" class="py-6 text-center text-sm text-white/45">
 			{{ _t("ui.map3d.noBlips", "No blips found") }}
 		</p>
+		<!-- ~870 icons, about 24 on screen: only the rows in view (plus one either side) are rendered -->
 		<div
 			v-else
-			class="grid max-h-36 grid-cols-6 gap-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-			<button
-				v-for="blip in filtered"
-				:key="blip.name"
-				type="button"
-				class="grid h-9 w-full place-items-center rounded-sm transition duration-150 active:scale-[0.98]"
-				:class="
-					blip.name === modelValue
-						? 'bg-[var(--panel-primary)] text-[var(--panel-ink)]'
-						: 'map-bar ring-1 ring-inset ring-white/15'
-				"
-				@click="emit('update:modelValue', blip.name)">
-				<BlipIcon :sprite="blip.name" :colour="colour" :size="iS(20)" />
-			</button>
+			ref="scroller"
+			class="max-h-36 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+			@scroll.passive="onScroll">
+			<div class="relative" :style="{ height: `${totalHeight}px` }">
+				<div class="absolute inset-x-0 top-0 grid grid-cols-6 gap-1" :style="{ transform: `translateY(${offsetY}px)` }">
+					<button
+						v-for="blip in visible"
+						:key="blip.name"
+						type="button"
+						class="grid h-9 w-full place-items-center rounded-sm transition duration-150 active:scale-[0.98]"
+						:class="
+							blip.name === modelValue
+								? 'bg-[var(--panel-primary)] text-[var(--panel-ink)]'
+								: 'map-bar ring-1 ring-inset ring-white/15'
+						"
+						@click="emit('update:modelValue', blip.name)">
+						<BlipIcon :sprite="blip.name" :colour="colour" :size="iS(20)" />
+					</button>
+				</div>
+			</div>
 		</div>
 	</div>
 </template>
@@ -48,6 +55,24 @@ const emit = defineEmits<{
 
 const query = ref("");
 
+const COLUMNS = 6;
+const scroller = ref<HTMLElement | null>(null);
+const scrollTop = ref(0);
+const viewHeight = ref(0);
+const remPx = ref(16);
+
+// h-9 buttons with a gap-1 between rows: 2.5rem per row, in the current UI scale
+const rowPitch = computed(() => remPx.value * 2.5);
+const rowGap = computed(() => remPx.value * 0.25);
+
+const measure = () => {
+	remPx.value = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+	viewHeight.value = scroller.value?.clientHeight || remPx.value * 9;
+};
+const onScroll = () => {
+	scrollTop.value = scroller.value?.scrollTop ?? 0;
+};
+
 const filtered = computed(() => {
 	const needle = query.value.trim().toLowerCase();
 	const list = needle
@@ -63,5 +88,28 @@ const filtered = computed(() => {
 		if (b.id !== null) return 1;
 		return a.name.localeCompare(b.name);
 	});
+});
+
+const rowCount = computed(() => Math.ceil(filtered.value.length / COLUMNS));
+const totalHeight = computed(() => Math.max(0, rowCount.value * rowPitch.value - rowGap.value));
+const firstRow = computed(() => Math.max(0, Math.floor(scrollTop.value / rowPitch.value) - 1));
+const lastRow = computed(() =>
+	Math.min(rowCount.value, Math.ceil((scrollTop.value + (viewHeight.value || remPx.value * 9)) / rowPitch.value) + 1),
+);
+const offsetY = computed(() => firstRow.value * rowPitch.value);
+const visible = computed(() => filtered.value.slice(firstRow.value * COLUMNS, lastRow.value * COLUMNS));
+
+watch(query, () => {
+	scrollTop.value = 0;
+	if (scroller.value) scroller.value.scrollTop = 0;
+});
+watch(scroller, () => measure());
+
+onMounted(() => {
+	measure();
+	window.addEventListener("resize", measure);
+});
+onUnmounted(() => {
+	window.removeEventListener("resize", measure);
 });
 </script>

@@ -1,12 +1,19 @@
 const CAT_PREFIX = "ui.settings.experimental.categories.";
 const SHARED_PREFIX = "ui.settings.experimental.shared.";
+const KEYS_PREFIX = "ui.settings.experimental.keyActions.";
 
 type ExpMaps = {
 	categories: Record<number, Record<string, string>>;
 	shared: Record<string, string>;
+	/** GTA control names (key bindings), keyed by the normalised English label. */
+	keyActions: Record<string, string>;
 };
 
-const emptyMaps: ExpMaps = { categories: {}, shared: {} };
+const emptyMaps: ExpMaps = { categories: {}, shared: {}, keyActions: {} };
+
+// The game is not consistent about case ("SWITCH to Michael", "Character selector"),
+// so control names are matched case- and whitespace-insensitively.
+const normaliseLabel = (value: string) => value.trim().replace(/\s+/g, " ").toLowerCase();
 
 let cacheSource: Record<string, string> | null = null;
 let cacheMaps: ExpMaps = emptyMaps;
@@ -14,11 +21,16 @@ let cacheMaps: ExpMaps = emptyMaps;
 const buildMaps = (translations: Record<string, string>): ExpMaps => {
 	const categories: Record<number, Record<string, string>> = {};
 	const shared: Record<string, string> = {};
+	const keyActions: Record<string, string> = {};
 
 	for (const key in translations) {
 		const value = translations[key];
 		if (value == null) continue;
 
+		if (key.startsWith(KEYS_PREFIX)) {
+			keyActions[normaliseLabel(key.slice(KEYS_PREFIX.length))] = value;
+			continue;
+		}
 		if (key.startsWith(SHARED_PREFIX)) {
 			shared[key.slice(SHARED_PREFIX.length)] = value;
 			continue;
@@ -36,7 +48,7 @@ const buildMaps = (translations: Record<string, string>): ExpMaps => {
 		(categories[index] ??= {})[label] = value;
 	}
 
-	return { categories, shared };
+	return { categories, shared, keyActions };
 };
 
 const getMaps = (translations: Record<string, string>) => {
@@ -60,7 +72,17 @@ export const useExperimental = () => {
 		return maps.shared[value] || value;
 	};
 
+	const keyActionLabel = (value: string) => {
+		if (!value || !experimentalLabels.value) return value;
+		const key = normaliseLabel(value);
+		const hit = getMaps(locale.translations).keyActions[key];
+		// Same words (English, or a language that keeps the name): keep the game's own casing.
+		if (!hit || normaliseLabel(hit) === key) return value;
+		return hit;
+	};
+
 	return {
+		keyActionLabel,
 		sharedLabel: (value: string, categoryIndex?: number) => resolve(categoryIndex, value),
 		categoryLabel: (category: SettingsCategory) => {
 			if (!experimentalLabels.value) return category.label;

@@ -274,7 +274,9 @@ return {
 
         --- Show the blips the server's scripts put on the map (shops, jobs, garages...) with the
         --- same icons, colours and names as the GTA map. Names are read from the GTA map legend:
-        --- until a player has opened the map page once, a blip shows its icon name instead.
+        --- when a blip's name was never seen, opening the 3D map reads it first (a second of
+        --- black screen, once per new kind of blip; the names are kept between sessions).
+        --- Blips a script keeps off the legend stay "Unnamed place".
         --- @type boolean
         serverBlips = true,
 

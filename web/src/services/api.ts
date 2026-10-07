@@ -85,6 +85,9 @@ onNuiMessage((data: any) => {
 		case "UpdateQuitConfirm":
 			main.updateQuitConfirm(!!data.confirm);
 			break;
+		case "UpdateCover":
+			main.updateCover(!!data.cover);
+			break;
 		case "UpdateLegend":
 			legend.$patch((s) =>
 				applyLtBatch(s.legend, {

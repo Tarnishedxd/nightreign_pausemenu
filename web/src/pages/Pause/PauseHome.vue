@@ -118,7 +118,7 @@ const props = defineProps<{
 
 const store = useMainStore();
 const { begin, accept } = useStats();
-const { quitConfirm, player } = storeToRefs(store);
+const { quitConfirm, player, cover } = storeToRefs(store);
 const selected = ref(0);
 const quitChoice = ref(0);
 
@@ -247,6 +247,8 @@ const onKeyDown = (e: KeyboardEvent) => {
 		else onContinue();
 		return;
 	}
+	// the menu is under the black cover (the 3D map is on its way): only Escape counts
+	if (cover.value) return;
 
 	if (quitConfirm.value) {
 		if (e.key === "ArrowLeft" || e.key === "ArrowUp") {

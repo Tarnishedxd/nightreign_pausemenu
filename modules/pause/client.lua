@@ -923,6 +923,7 @@ function PauseClass:continueGame()
 end
 
 function PauseClass:openMap()
+    if self.map3dOpening then return end
     if not NativeMap or NativeMap:isOpen() then return end
     if Camera and Camera:isOpen() then return end
     if SettingsBridge and (SettingsBridge.active or SettingsBridge.dumpBusy) then return end
@@ -967,7 +968,7 @@ end
 function PauseClass:openMap3d()
     if not cfg.threeDMap or not cfg.threeDMap.enabled then return end
     if not Camera or Camera:isOpen() or self.map3dOpening then return end
-    if nativeMapOpen() then return end
+    if nativeMapOpen() or self.settingsOpening then return end
     self.quitConfirm = false
     self.map3dGen += 1
     local gen = self.map3dGen
@@ -996,6 +997,7 @@ end
 
 function PauseClass:openStats()
     if not cfg.pause.showStats then return end
+    if self.map3dOpening then return end
     if self.settingsOpening then return end
     if SettingsBridge and SettingsBridge.active then return end
     if nativeMapOpen() then return end
@@ -1006,6 +1008,8 @@ end
 
 function PauseClass:openSettings()
     if not SettingsBridge then return end
+    -- the 3D map is on its way (its names are read behind the cover): menu keys wait for it
+    if self.map3dOpening then return end
     if self.settingsOpening then return end
     if SettingsBridge.active then return end
     if nativeMapOpen() then return end
@@ -1019,6 +1023,7 @@ function PauseClass:openSettings()
 end
 
 function PauseClass:requestQuit()
+    if self.map3dOpening then return end
     self.quitConfirm = true
     SendVue('UpdateQuitConfirm', { confirm = true })
 end

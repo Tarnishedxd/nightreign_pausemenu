@@ -9,6 +9,7 @@ export const useMainStore = defineStore("main", {
 		visible: isEnvBrowser(),
 		currentPage: "pause",
 		quitConfirm: false,
+		cover: false,
 		player: {
 			source: 0,
 			name: "",
@@ -40,6 +41,9 @@ export const useMainStore = defineStore("main", {
 		},
 		updateQuitConfirm(confirm: boolean) {
 			this.quitConfirm = confirm;
+		},
+		updateCover(cover: boolean) {
+			this.cover = cover;
 		},
 	},
 });

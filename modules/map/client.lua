@@ -920,6 +920,60 @@ function NativeMapClass:begin()
     return true
 end
 
+--- @return boolean
+function NativeMapClass:canLearn()
+    if self.open or self.opening or self.closing or self.frontendUp then return false end
+    return not (SettingsBridge and (SettingsBridge.active or SettingsBridge.dumpBusy))
+end
+
+--- Reads the GTA map legend without showing the map page, only so the 3D map can name the
+--- server's blips. The caller keeps the screen covered meanwhile; returns once the frontend is
+--- gone again.
+--- @return boolean read the legend was read and learned from
+function NativeMapClass:learnNames()
+    if not self:canLearn() then return false end
+    self.opening = true
+    self.returnToPause = false
+    local ok, result = pcall(function()
+        ActivateFrontendMenu(pauseMenu, false, -1)
+        self.frontendUp = true
+        self:startCursorHideLoop()
+        if not self:waitFrontend(2000) then return 'frontend did not become ready' end
+        self.forceReleased = false
+        self:holdFrontend(true)
+        self:enterMapPage()
+        self:hideChrome()
+        local build = self:readString('GET_BRIDGE_BUILD', returnTimeout)
+        if build ~= BridgeVersion then
+            return ('gfx build=%s expected=%s'):format(build ~= '' and build or 'nil', BridgeVersion)
+        end
+        local raw = self:waitLegend(2500)
+        if raw == '' then return 'legend not found' end
+        local rows = parseLegend(raw)
+        if BlipNames then BlipNames.learn(rows) end
+        LT.Debug.Info('map legend read for the 3d map, %s rows', #rows)
+        return true
+    end)
+    -- leave the frontend as the map page does (its chrome visible again for the vanilla pause)
+    if self.frontendUp and self.opening then
+        self:holdFrontend(true)
+        invokeFrontend('BRIDGE_MAP_HIDE', false)
+        invokeFrontendHeader('BRIDGE_HIDE', false)
+    end
+    self.returnToPause = false
+    self:close()
+    -- a camera must not take over before the pause menu is really gone
+    local deadline = GetGameTimer() + 2000
+    while (IsPauseMenuActive() or IsPauseMenuRestarting()) and GetGameTimer() < deadline do
+        Wait(0)
+    end
+    if not ok or result ~= true then
+        LT.Debug.Warn('map legend not read for the 3d map: %s', tostring(result))
+        return false
+    end
+    return true
+end
+
 function NativeMapClass:openMap()
     if self.open or self.opening then
         LT.Debug.Warn('map open skipped, it is already up')

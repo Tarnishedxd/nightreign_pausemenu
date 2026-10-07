@@ -15,7 +15,7 @@
 			leave-active-class="veil-fade"
 			leave-from-class="opacity-100"
 			leave-to-class="opacity-0">
-			<div v-if="settings.veil" class="fixed inset-0 z-[80] grid place-items-center bg-black">
+			<div v-if="settings.veil || cover" class="fixed inset-0 z-[80] grid place-items-center bg-black">
 				<div class="flex items-center gap-3">
 					<span class="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white" />
 				</div>
@@ -55,7 +55,7 @@ import GtaAlertModal from "@/components/GtaAlertModal.vue";
 import { announceReady } from "@/services/api";
 
 const store = useMainStore();
-const { visible, currentPage } = storeToRefs(store);
+const { visible, currentPage, cover } = storeToRefs(store);
 const settingsStore = useSettingsStore();
 const { settings } = storeToRefs(settingsStore);
 

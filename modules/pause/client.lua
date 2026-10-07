@@ -7,6 +7,8 @@ local portraitModeKvp <const> = 'portraitMode'
 local waisHud <const> = 'wais-hudv6'
 -- A camera move longer than this is a teleport / respawn: cut instead of easing across the map.
 local SNAP_DISTANCE <const> = 8.0
+-- The UI's black cover fades in this long (veil-fade).
+local COVER_FADE_MS <const> = 400
 
 --- @return boolean
 local function isPortraitEnabled()
@@ -123,6 +125,9 @@ function PauseClass:new()
     self.pauseAnimClip = nil
     self.pauseProp = nil
     self.portraitSuspended = false
+    self.map3dOpening = false
+    self.map3dGen = 0
+    self.blipNamesFailures = 0
     return self
 end
 
@@ -595,6 +600,7 @@ end
 function PauseClass:hideNui()
     LT.NUI.Focus(false)
     SendVue('UpdateVisibility', { visible = false })
+    SendVue('UpdateCover', { cover = false })
 end
 
 -- ════════════════════════════════════════════════════════════════════════════════════════════
@@ -776,6 +782,7 @@ function PauseClass:openVanilla()
     if self.allowVanilla then return end
     if Camera then Camera.returnToPause = false end
     if NativeMap then NativeMap.returnToPause = false end
+    self:cancelMap3dOpen()
     self.open = false
     self.page = 'pause'
     self.quitConfirm = false
@@ -848,6 +855,7 @@ end
 
 function PauseClass:close()
     if SettingsBridge and SettingsBridge.active and isSettingsBusy() then return end
+    self:cancelMap3dOpen()
     self.settingsOpening = false
     self.page = 'pause'
     if SettingsBridge and SettingsBridge.active then
@@ -926,16 +934,62 @@ function PauseClass:openMap()
     NativeMap:openMap()
 end
 
+--- Closing the pause meanwhile drops a 3D map that is still on its way.
+function PauseClass:cancelMap3dOpen()
+    self.map3dGen += 1
+    self.map3dOpening = false
+end
+
+--- The 3D map names the server's blips from the GTA map legend. When blips are on the map whose
+--- names were never read, read the legend first, with the screen covered (once per new icon).
+--- @param gen integer
+--- @return boolean covered
+function PauseClass:learnBlipNames(gen)
+    if self.blipNamesFailures >= 2 or not NativeMap or not ThreeDMap or not BlipNames then return false end
+    if not NativeMap:canLearn() then return false end
+    local icons = ThreeDMap:unknownIcons()
+    if #icons == 0 then return false end
+    LT.Debug.Info('3d map: %s blip icons without a name, reading the map legend first', #icons)
+    SendVue('UpdateCover', { cover = true })
+    Wait(COVER_FADE_MS)
+    if self.map3dGen ~= gen or not self.open then return true end
+    self:stopPortrait(false)
+    if NativeMap:learnNames() then
+        BlipNames.settle(icons)
+    elseif self.map3dGen == gen and self.open then
+        -- not closed by the player: the legend could not be read; try once more, then stop
+        -- holding up every 3D map open for it
+        self.blipNamesFailures += 1
+    end
+    return true
+end
+
 function PauseClass:openMap3d()
     if not cfg.threeDMap or not cfg.threeDMap.enabled then return end
-    if not Camera or Camera:isOpen() then return end
+    if not Camera or Camera:isOpen() or self.map3dOpening then return end
     if nativeMapOpen() then return end
     self.quitConfirm = false
-    self:stopPortrait(false)
-    Camera.returnToPause = false
-    self:hideNui()
+    self.map3dGen += 1
+    local gen = self.map3dGen
+    self.map3dOpening = true
     LT.Debug.Info('opening the 3d map')
     CreateThread(function()
+        local ok, covered = pcall(self.learnBlipNames, self, gen)
+        if not ok then
+            LT.Debug.Error('reading the blip names failed: %s', tostring(covered))
+            covered = true
+        end
+        if self.map3dGen ~= gen then return end
+        self.map3dOpening = false
+        if (covered and not self.open) or Camera:isOpen() or nativeMapOpen() then
+            if covered then SendVue('UpdateCover', { cover = false }) end
+            return
+        end
+        self:stopPortrait(false)
+        Camera.returnToPause = false
+        -- straight from the cover into the 3D map's own fade: the game view does not flash between
+        if covered then DoScreenFadeOut(0) end
+        self:hideNui()
         Camera:openMap()
     end)
 end

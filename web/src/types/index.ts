@@ -136,6 +136,8 @@ export type MainStore = {
 	visible: boolean;
 	currentPage: Page;
 	quitConfirm: boolean;
+	/** A black cover over everything while the game screen behind must not be seen. */
+	cover: boolean;
 	player: Player;
 	map: MapInfoState;
 };

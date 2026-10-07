@@ -39,11 +39,15 @@ end
 
 local MAX_SPRITE <const> = 1000
 local NAMES_KVP <const> = 'nightreign_pausemenu_blipNames2'
+--- Icons the GTA map legend did not list although such a blip was on the map.
+local MISSING_KVP <const> = 'nightreign_pausemenu_blipMissing'
 --- The player arrow and the waypoint have their own rows.
 local SKIP_SPRITES <const> = { [6] = true, [8] = true }
 --- What a blip is attached to (GET_BLIP_INFO_ID_TYPE): 2 ped, 3 object, 4 coord. Vehicles move;
 --- pickups and radius / area outlines are not places.
 local PLACE_TYPES <const> = { [2] = true, [3] = true, [4] = true }
+--- SET_BLIP_DISPLAY modes that keep a blip off the big map (minimap only).
+local MINIMAP_ONLY <const> = { [5] = true, [9] = true }
 
 --- @param hex string|nil
 --- @return number|nil, number|nil, number|nil
@@ -58,7 +62,7 @@ end
 --- the icon name (radar_*) rather than the sprite id, so web/build/blips.json (id -> icon name,
 --- written by the UI build) links the two. Names are learned whenever the legend is read (the
 --- map page) and kept between sessions.
-BlipNames = { byIcon = {}, iconOf = {}, own = {} }
+BlipNames = { byIcon = {}, iconOf = {}, own = {}, missing = {} }
 
 --- Same cleanup as the GTA map legend gives its labels.
 --- @param label string|nil
@@ -89,6 +93,15 @@ function BlipNames.load()
     end
     BlipNames.iconOf = icons
 
+    local missing = {}
+    local okMissing, absent = pcall(json.decode, GetResourceKvpString(MISSING_KVP) or '')
+    if okMissing and type(absent) == 'table' then
+        for i = 1, #absent do
+            if type(absent[i]) == 'string' and absent[i]:find('^radar_') then missing[absent[i]] = true end
+        end
+    end
+    BlipNames.missing = missing
+
     -- names keyed by sprite id (first version) were often filed under the wrong sprite
     if GetResourceKvpString(NAMES_KVP_OLD) then DeleteResourceKvp(NAMES_KVP_OLD) end
     local stored
@@ -111,6 +124,32 @@ function BlipNames.load()
     BlipNames.byIcon = clean
 end
 
+function BlipNames.saveMissing()
+    local list = {}
+    for icon in pairs(BlipNames.missing) do list[#list + 1] = icon end
+    if #list == 0 then
+        DeleteResourceKvp(MISSING_KVP)
+    else
+        table.sort(list)
+        SetResourceKvp(MISSING_KVP, json.encode(list))
+    end
+end
+
+--- After a full legend read: icons it still did not name are not in the legend at all (blips a
+--- script keeps off the legend), so opening the 3D map does not read it again for them.
+--- @param icons string[]
+function BlipNames.settle(icons)
+    local added = false
+    for i = 1, #icons do
+        local icon = icons[i]
+        if not BlipNames.byIcon[icon] and not BlipNames.missing[icon] then
+            BlipNames.missing[icon] = true
+            added = true
+        end
+    end
+    if added then BlipNames.saveMissing() end
+end
+
 --- @param rows table[] parsed legend rows (label, sprite = icon name, colour, kind)
 function BlipNames.learn(rows)
     local fresh = {}
@@ -131,6 +170,14 @@ function BlipNames.learn(rows)
         end
     end
     if not next(fresh) then return end
+    local found = false
+    for icon in pairs(fresh) do
+        if BlipNames.missing[icon] then
+            BlipNames.missing[icon] = nil
+            found = true
+        end
+    end
+    if found then BlipNames.saveMissing() end
     -- the legend is read again on every change while the map page is open: only touch the
     -- stored names (a disk write) when one of them is new or different
     local changed = false
@@ -191,7 +238,9 @@ local function scanServerBlips(ours)
             while blip and blip ~= 0 and guard < 4096 and DoesBlipExist(blip) do
                 guard += 1
                 local kind = GetBlipInfoIdType(blip)
-                if blip ~= playerBlip and not ours[blip] and PLACE_TYPES[kind] and GetBlipAlpha(blip) > 0 then
+                if blip ~= playerBlip and not ours[blip] and PLACE_TYPES[kind] and GetBlipAlpha(blip) > 0
+                    and not MINIMAP_ONLY[GetBlipInfoIdDisplay(blip)]
+                then
                     -- a ped / object blip counts while its entity is here and is not a player
                     local keep = kind == 4
                     if not keep then
@@ -974,14 +1023,37 @@ end
 -- LOOP
 -- ════════════════════════════════════════════════════════════════════════════════════════════
 
+--- @return table<number, boolean>
+function ThreeDMapClass:ownBlips()
+    local ours = {}
+    for _, handle in pairs(self.worldBlips) do ours[handle] = true end
+    return ours
+end
+
+--- Icons of the server's blips on the map now whose names were never read from the GTA map
+--- legend (and which a full read did not find missing either).
+--- @return string[]
+function ThreeDMapClass:unknownIcons()
+    if mapCfg.serverBlips == false then return {} end
+    local ok, found = pcall(scanServerBlips, self:ownBlips())
+    if not ok then return {} end
+    local icons, seen = {}, {}
+    for i = 1, #found do
+        local icon = BlipNames.iconOf[found[i].sprite]
+        if icon and not seen[icon] and not BlipNames.byIcon[icon] and not BlipNames.missing[icon] then
+            seen[icon] = true
+            icons[#icons + 1] = icon
+        end
+    end
+    return icons
+end
+
 function ThreeDMapClass:onOpen()
     self.open = true
     self.gpsToken = nil
     self:syncGpsWaypoint()
     if mapCfg.serverBlips ~= false then
-        local ours = {}
-        for _, handle in pairs(self.worldBlips) do ours[handle] = true end
-        local ok, found = pcall(scanServerBlips, ours)
+        local ok, found = pcall(scanServerBlips, self:ownBlips())
         self.serverBlips = ok and found or {}
         if not ok then LT.Debug.Error('reading the map blips failed: %s', tostring(found)) end
     else
